@@ -20,23 +20,37 @@ body {
     flex-direction: column;
 }
 
-/* Encabezado con logos */
+/* Encabezado dividido en tres secciones */
 .header {
     width: 100%;
     display: flex;
-    justify-content: space-around; /* Distribuye los logos equitativamente */
+    justify-content: space-around; /* Asegura que el logo central tenga espacio uniforme */
     align-items: center;
     padding: 10px 20px;
     background-color: rgba(255, 255, 255, 0.9);
-    position: absolute; /* Fija la posición en la parte superior */
+    position: absolute;
     top: 0;
     left: 0;
     right: 0;
     z-index: 1000;
+    height: 140px; /* Aumenta ligeramente el header para mejor ajuste */
 }
 
-.header img {
-    height: 50px; /* Ajusta el tamaño uniforme de los logos */
+/* Secciones del header */
+.logo-section {
+    flex: 1; /* Hace que cada sección tenga el mismo ancho */
+    display: flex;
+    justify-content: center; /* Centra los logos dentro de cada sección */
+    align-items: center;
+}
+
+/* Ajuste de tamaños individuales */
+.logo-section img {
+    max-width: 100%; /* Hace que las imágenes ocupen el 100% del contenedor */
+    max-height: 120px; /* Ajusta la altura dentro del header */
+    height: auto;
+    width: auto;
+    object-fit: contain; /* Mantiene la proporción sin deformar */
 }
 
 /* Contenedor principal */
@@ -154,7 +168,7 @@ button:hover, .btn:hover {
     padding: 20px;
     border-radius: 8px;
     width: 80%;
-    max-width: 600px;
+    max-width: 500px;
     max-height: 80vh; /* Limita la altura del modal */
     overflow-y: auto; /* Agrega barra de desplazamiento si el contenido es mayor al 80% de la pantalla */
     box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);

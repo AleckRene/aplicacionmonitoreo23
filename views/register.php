@@ -52,9 +52,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $_GET['action'] == 'register') {
 </head>
 <body>
     <div class="header">
-    <img src="../assets/img/gobierno.png" alt="Gobierno">
-    <img src="../assets/img/mcp.png" alt="MCP">
-    <img src="../assets/img/organizacion.png" alt="Organización">
+    <div class="logo-section logo-left">
+        <img src="../assets/images/MCP-Logo.png" alt="MCP">
+    </div>
+    <div class="logo-section logo-center">
+        <img src="../assets/images/Gobierno.png" alt="Gobierno">
+    </div>
+    <div class="logo-section logo-right">
+        <img src="../assets/images/NICASALUD.png" alt="NICASALUD">
+    </div>
     </div>
     <div class="register-container">
         <h1>Registro</h1>
