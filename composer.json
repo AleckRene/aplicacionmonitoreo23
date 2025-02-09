@@ -1,0 +1,15 @@
+{
+    "name": "aleck/aplicacionmonitoreo",
+    "description": "Aplicacion movil de monitoreo liderado por la comunidad",
+    "require": {
+        "dompdf/dompdf": "^3.0"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Aleck René Pérez Zeledón",
+            "email": "aleckpz@yahoo.es"
+        }
+    ],
+    "minimum-stability": "stable"
+}

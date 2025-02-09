@@ -1,0 +1,101 @@
+/* Estilo general para el informe */
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 40px;
+    color: #333;
+    text-align: center;
+}
+
+h1 {
+    font-size: 28px;
+    font-weight: bold;
+    color: #0056b3;
+    margin-bottom: 10px;
+}
+
+h2 {
+    font-size: 22px;
+    font-weight: bold;
+    color: #007bff;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 5px;
+    margin-top: 30px;
+}
+
+h3 {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+}
+
+p {
+    font-size: 16px;
+}
+
+/* Tabla estilizada */
+.table-container {
+    width: 100%;
+    margin: 20px auto;
+    text-align: center;
+}
+
+table {
+    width: 90%;
+    margin: auto;
+    border-collapse: collapse;
+    box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+    font-size: 14px;
+}
+
+th {
+    background-color: #007bff;
+    color: white;
+    font-weight: bold;
+}
+
+tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* Botones */
+.btn {
+    display: inline-block;
+    padding: 12px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    text-decoration: none;
+    color: white;
+    background-color: #007bff;
+    border-radius: 5px;
+    margin: 10px;
+}
+
+.btn:hover {
+    background-color: #0056b3;
+}
+
+/* Contenedor general */
+.container {
+    text-align: center;
+    padding: 30px;
+    margin: auto;
+    width: 80%;
+    background: white;
+    box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+}
+
+/* Mejoras en la estructura del documento */
+.page-break {
+    page-break-before: always;
+}
