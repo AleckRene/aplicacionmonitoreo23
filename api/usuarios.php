@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_GET['action']) && $_GET['act
     $sqlInsert = "INSERT INTO usuarios (name, localidad, password, roleID, fecha_registro, ultima_fecha_ingreso) 
                   VALUES (?, ?, ?, ?, ?, ?)";
     $stmtInsert = $conn->prepare($sqlInsert);
-    $stmtInsert->bind_param("sssis", $name, $localidad, $password, $roleID, $fecha_registro, $ultima_fecha_ingreso);
+    $stmtInsert->bind_param("sssisi", $name, $localidad, $password, $roleID, $fecha_registro, $ultima_fecha_ingreso);
 
     if ($stmtInsert->execute()) {
         header("Location: ../views/login.php?success=Registro%20exitoso.%20Por%20favor,%20inicia%20sesi%C3%B3n.");
