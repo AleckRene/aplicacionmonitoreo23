@@ -1,51 +1,64 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar Sesión</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <script>
-        // Función para limpiar los campos del formulario al cargar la página
-        window.onload = () => {
-            document.querySelector('form').reset(); // Limpia todos los campos
-        };
-    </script>
-</head>
-<body>
-<div class="header">
-    <div class="logo-section logo-left">
-        <img src="../assets/images/MCP-Logo.png" alt="MCP">
-    </div>
-    <div class="logo-section logo-center">
-        <img src="../assets/images/Gobierno.png" alt="Gobierno">
-    </div>
-    <div class="logo-section logo-right">
-        <img src="../assets/images/NICASALUD.png" alt="NICASALUD">
-    </div>
-    </div>
-    <div class="login-container">
-        <h1>Iniciar Sesión</h1>
-        <!-- Mostrar mensajes -->
-        <?php if (isset($_GET['error'])): ?>
-            <p class="error-message"><?= htmlspecialchars($_GET['error']) ?></p>
-        <?php endif; ?>
+<?php
+header('Content-Type: application/json');
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-        <form action="../api/login.php" method="POST" autocomplete="off">
-            <input type="text" name="name" placeholder="Nombre" required autocomplete="off">
-            <input type="text" name="localidad" placeholder="Localidad" required autocomplete="off">
-            <input type="password" name="password" placeholder="Contraseña" required autocomplete="off">
-            <button type="submit">Ingresar</button>
-        </form>
+require_once '../config/config.php';
 
-        <p>¿No tienes una cuenta? <a href="../views/register.php">Regístrate aquí</a></p>
-    </div>
+$response = [
+    'success' => false,
+    'message' => 'No se pudo procesar la solicitud.',
+];
 
-    <script>
-        window.onload = () => {
-            document.querySelectorAll('input').forEach(input => input.value = '');
-        };
-    </script>
-    <script src="../assets/js/background.js"></script>
-</body>
-</html>
+try {
+    // Verificar si la solicitud es POST
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        throw new Exception('Método no permitido. Se requiere una solicitud POST.');
+    }
+
+    // Obtener el JSON enviado
+    $inputJSON = file_get_contents("php://input");
+    $input = json_decode($inputJSON, true);
+
+    if (!$input || !isset($input['name']) || !isset($input['localidad']) || !isset($input['password'])) {
+        throw new Exception('Datos incompletos. Se requieren "name", "localidad" y "password".');
+    }
+
+    $name = $conn->real_escape_string($input['name']);
+    $localidad = $conn->real_escape_string($input['localidad']);
+    $password = $conn->real_escape_string($input['password']);
+
+    // Consulta para verificar el usuario en la base de datos
+    $query = "SELECT id, name, localidad, password FROM usuarios WHERE name = '$name' AND localidad = '$localidad' LIMIT 1";
+    $result = $conn->query($query);
+
+    if (!$result || $result->num_rows === 0) {
+        throw new Exception('Usuario no encontrado o credenciales incorrectas.');
+    }
+
+    $user = $result->fetch_assoc();
+
+    // Verificar la contraseña (ajustar si está encriptada)
+    if (!password_verify($password, $user['password'])) {
+        throw new Exception('Contraseña incorrecta.');
+    }
+
+    // Respuesta de éxito
+    $response = [
+        'success' => true,
+        'user_id' => $user['id'],
+        'name' => $user['name'],
+        'localidad' => $user['localidad'],
+        'message' => 'Inicio de sesión exitoso',
+    ];
+} catch (Exception $e) {
+    $response['message'] = $e->getMessage();
+} finally {
+    // Cerrar conexión si es necesario
+    if (isset($conn)) {
+        $conn->close();
+    }
+    // Devolver respuesta JSON
+    echo json_encode($response);
+    exit;
+}
