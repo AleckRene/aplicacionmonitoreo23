@@ -3,14 +3,24 @@ include_once '../models/AccesibilidadCalidad.php';
 include_once '../config/config.php';
 
 class AccesibilidadCalidadController {
+    private $model;
+
+    public function __construct($db) {
+        $this->model = new AccesibilidadCalidad($db);
+    }
+
+    /**
+     * Obtener todos los registros
+     */
     public function getAll() {
-        global $conn;
-        $data = AccesibilidadCalidad::getAll($conn);
+        $data = $this->model->getAll();
         echo json_encode($data);
     }
 
+    /**
+     * Crear un nuevo registro
+     */
     public function create() {
-        global $conn;
         $input = json_decode(file_get_contents("php://input"), true);
 
         if (!isset($input['accesibilidad_servicios'], $input['actitud_personal'], $input['tarifas_ocultas'], $input['factores_mejora'], $input['disponibilidad_herramientas'])) {
@@ -18,20 +28,21 @@ class AccesibilidadCalidadController {
             return;
         }
 
-        $result = AccesibilidadCalidad::create(
+        $result = $this->model->create(
             $input['accesibilidad_servicios'],
             $input['actitud_personal'],
             $input['tarifas_ocultas'],
             $input['factores_mejora'],
-            $input['disponibilidad_herramientas'],
-            $conn
+            $input['disponibilidad_herramientas']
         );
 
-        echo $result ? json_encode(["message" => "Registro creado con éxito"]) : json_encode(["error" => "Error al crear registro"]);
+        echo json_encode($result);
     }
 
+    /**
+     * Actualizar un registro existente
+     */
     public function update($id) {
-        global $conn;
         $input = json_decode(file_get_contents("php://input"), true);
 
         if (!isset($input['accesibilidad_servicios'], $input['actitud_personal'], $input['tarifas_ocultas'], $input['factores_mejora'], $input['disponibilidad_herramientas'])) {
@@ -39,22 +50,24 @@ class AccesibilidadCalidadController {
             return;
         }
 
-        $result = AccesibilidadCalidad::update(
+        $result = $this->model->update(
             $id,
             $input['accesibilidad_servicios'],
             $input['actitud_personal'],
             $input['tarifas_ocultas'],
             $input['factores_mejora'],
-            $input['disponibilidad_herramientas'],
-            $conn
+            $input['disponibilidad_herramientas']
         );
 
-        echo $result ? json_encode(["message" => "Registro actualizado con éxito"]) : json_encode(["error" => "Error al actualizar registro"]);
+        echo json_encode($result);
     }
 
+    /**
+     * Eliminar un registro
+     */
     public function delete($id) {
-        global $conn;
-        $result = AccesibilidadCalidad::delete($id, $conn);
-        echo $result ? json_encode(["message" => "Registro eliminado con éxito"]) : json_encode(["error" => "Error al eliminar registro"]);
+        $result = $this->model->delete($id);
+        echo json_encode($result);
     }
 }
+?>

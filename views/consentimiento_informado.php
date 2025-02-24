@@ -5,6 +5,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['consent'])) {
     header("Location: dashboard.php"); // Redirigir al dashboard
     exit();
 }
+
+// Si el usuario intenta acceder al dashboard sin aceptar el consentimiento, redirigirlo de nuevo aquí
+if (!isset($_SESSION['consent_accepted'])) {
+    $_SESSION['consent_accepted'] = false;
+}
 ?>
 
 <!DOCTYPE html>
@@ -19,41 +24,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['consent'])) {
             margin: 0;
             padding: 0;
             background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
         }
-
         .consent-container {
             max-width: 600px;
-            margin: 50px auto;
             padding: 20px;
             background: #fff;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             border-radius: 10px;
             text-align: left;
         }
-
         .consent-container h1 {
             font-size: 24px;
             color: #333;
             text-align: center;
         }
-
         .consent-container p, .consent-container ul {
             font-size: 16px;
             color: #555;
             line-height: 1.5;
             margin-bottom: 15px;
         }
-
         .consent-container ul {
             list-style-type: disc;
             margin-left: 20px;
         }
-
         .consent-container label {
             font-size: 16px;
             color: #555;
         }
-
         .consent-container .btn {
             background-color: #007bff;
             color: white;
@@ -67,11 +69,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['consent'])) {
             text-align: center;
             text-decoration: none;
         }
-
         .consent-container .btn:hover {
             background-color: #0056b3;
         }
+        .consent-container .btn:disabled {
+            background-color: #b0c4de;
+            cursor: not-allowed;
+        }
     </style>
+    <script>
+        function disableButton() {
+            document.getElementById('submit-btn').disabled = true;
+            document.getElementById('consent-form').submit();
+        }
+    </script>
 </head>
 <body>
     <div class="consent-container">
@@ -83,13 +94,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['consent'])) {
             <li>Da su consentimiento para participar de manera voluntaria.</li>
             <li>Entiende que puede retirarse del estudio en cualquier momento sin consecuencias negativas.</li>
         </ul>
-        <form action="consentimiento_informado.php" method="POST">
+        <form id="consent-form" action="consentimiento_informado.php" method="POST">
             <label>
                 <input type="checkbox" name="consent" required>
                 He leído y acepto los términos del consentimiento informado.
             </label>
             <br><br>
-            <button type="submit" class="btn">Aceptar y Continuar</button>
+            <button id="submit-btn" type="submit" class="btn" onclick="disableButton()">Aceptar y Continuar</button>
         </form>
     </div>
 </body>

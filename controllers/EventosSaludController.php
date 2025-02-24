@@ -1,62 +1,76 @@
 <?php
-class EventosSaludController
-{
-    private $db;
+class EventosSaludController {
+    private $conn;
 
-    public function __construct($db)
-    {
-        $this->db = $db;
+    public function __construct($db) {
+        $this->conn = $db;
     }
 
     // Obtener todos los eventos de salud
-    public function getAll()
-    {
+    public function getAll() {
         try {
-            $result = EventosSalud::getAll($this->db);
-            echo json_encode($result);
+            $result = EventosSalud::getAll($this->conn);
+            echo json_encode(["status" => 200, "data" => $result]);
         } catch (Exception $e) {
-            echo json_encode(["error" => $e->getMessage()]);
+            http_response_code(500);
+            echo json_encode(["status" => 500, "error" => $e->getMessage()]);
         }
     }
 
     // Crear un nuevo evento de salud
-    public function create($descripcion, $accionesTomadas, $usuarioID, $fecha)
-    {
+    public function create($data) {
         try {
-            $newId = EventosSalud::create($this->db, $descripcion, $accionesTomadas, $usuarioID, $fecha);
-            echo json_encode(["success" => "Registro creado con ID: $newId"]);
+            if (!isset($data['nombre_evento'], $data['descripcion'], $data['fecha'], $data['acciones'], $data['usuario_id'])) {
+                throw new Exception("Faltan campos requeridos");
+            }
+            
+            $created = EventosSalud::create($data['nombre_evento'], $data['descripcion'], $data['fecha'], $data['acciones'], $data['usuario_id'], $this->conn);
+            if ($created) {
+                echo json_encode(["status" => 201, "message" => "Evento registrado exitosamente."]);
+            } else {
+                throw new Exception("No se pudo registrar el evento");
+            }
         } catch (Exception $e) {
-            echo json_encode(["error" => $e->getMessage()]);
+            http_response_code(500);
+            echo json_encode(["status" => 500, "error" => $e->getMessage()]);
         }
     }
 
     // Actualizar un evento de salud existente
-    public function update($id, $descripcion, $accionesTomadas, $usuarioID, $fecha)
-    {
+    public function update($data) {
         try {
-            $updated = EventosSalud::update($this->db, $id, $descripcion, $accionesTomadas, $usuarioID, $fecha);
+            if (!isset($data['id'], $data['nombre_evento'], $data['descripcion'], $data['fecha'], $data['acciones'], $data['usuario_id'])) {
+                throw new Exception("Faltan campos requeridos");
+            }
+            
+            $updated = EventosSalud::update($data['id'], $data['nombre_evento'], $data['descripcion'], $data['fecha'], $data['acciones'], $data['usuario_id'], $this->conn);
             if ($updated) {
-                echo json_encode(["success" => "Registro actualizado correctamente."]);
+                echo json_encode(["status" => 200, "message" => "Evento actualizado correctamente."]);
             } else {
-                echo json_encode(["error" => "No se pudo actualizar el registro."]);
+                throw new Exception("No se pudo actualizar el evento");
             }
         } catch (Exception $e) {
-            echo json_encode(["error" => $e->getMessage()]);
+            http_response_code(500);
+            echo json_encode(["status" => 500, "error" => $e->getMessage()]);
         }
     }
 
     // Eliminar un evento de salud
-    public function delete($id)
-    {
+    public function delete($id) {
         try {
-            $deleted = EventosSalud::delete($this->db, $id);
+            if (!$id) {
+                throw new Exception("Falta el ID del evento");
+            }
+            
+            $deleted = EventosSalud::delete($id, $this->conn);
             if ($deleted) {
-                echo json_encode(["success" => "Registro eliminado correctamente."]);
+                echo json_encode(["status" => 200, "message" => "Evento eliminado correctamente."]);
             } else {
-                echo json_encode(["error" => "No se pudo eliminar el registro."]);
+                throw new Exception("No se pudo eliminar el evento");
             }
         } catch (Exception $e) {
-            echo json_encode(["error" => $e->getMessage()]);
+            http_response_code(500);
+            echo json_encode(["status" => 500, "error" => $e->getMessage()]);
         }
     }
 }

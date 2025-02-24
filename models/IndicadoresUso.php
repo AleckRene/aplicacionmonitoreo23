@@ -17,6 +17,10 @@ class IndicadoresUso {
     }
 
     public function create($conn) {
+        if (!$this->validarDatos()) {
+            return false;
+        }
+        
         $query = "INSERT INTO indicadores_uso (numero_usuarios, nivel_actividad, frecuencia_recomendaciones, calidad_uso, usuario_id) VALUES (?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($query);
         $stmt->bind_param("isssi", $this->numeroUsuarios, $this->nivelActividad, $this->frecuenciaRecomendaciones, $this->calidadUso, $this->usuarioID);
@@ -46,6 +50,10 @@ class IndicadoresUso {
     }
 
     public function update($conn) {
+        if (!$this->validarDatos()) {
+            return false;
+        }
+        
         $query = "UPDATE indicadores_uso SET numero_usuarios = ?, nivel_actividad = ?, frecuencia_recomendaciones = ?, calidad_uso = ?, usuario_id = ? WHERE id = ?";
         $stmt = $conn->prepare($query);
         $stmt->bind_param("isssii", $this->numeroUsuarios, $this->nivelActividad, $this->frecuenciaRecomendaciones, $this->calidadUso, $this->usuarioID, $this->id);
@@ -57,6 +65,26 @@ class IndicadoresUso {
         $stmt = $conn->prepare($query);
         $stmt->bind_param("i", $id);
         return $stmt->execute();
+    }
+
+    private function validarDatos() {
+        if ($this->numeroUsuarios < 0) {
+            return false;
+        }
+        $nivelesValidos = ["Bajo", "Moderadamente bajo", "Moderado", "Moderadamente alto", "Alto"];
+        $frecuenciasValidas = ["Raramente", "Ocasionalmente", "Moderadamente frecuente", "Frecuente", "Muy frecuente"];
+        $calidadesValidas = ["Deficiente", "Aceptable", "Buena", "Muy buena", "Excelente"];
+        
+        if (!in_array($this->nivelActividad, $nivelesValidos)) {
+            return false;
+        }
+        if (!in_array($this->frecuenciaRecomendaciones, $frecuenciasValidas)) {
+            return false;
+        }
+        if (!in_array($this->calidadUso, $calidadesValidas)) {
+            return false;
+        }
+        return true;
     }
 }
 ?>

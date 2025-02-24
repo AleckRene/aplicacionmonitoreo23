@@ -13,7 +13,6 @@ require_once '../config/config.php'; // Configuración de la base de datos
 $method = $_SERVER['REQUEST_METHOD'];
 
 try {
-    $method = $_SERVER['REQUEST_METHOD'];
     switch ($method) {
         case 'GET':
             getNecesidadesComunitarias($conn);
@@ -38,46 +37,63 @@ try {
     }
 }
 
+// Obtener todas las necesidades comunitarias
 function getNecesidadesComunitarias($conn) {
-    $result = $conn->query("SELECT * FROM necesidades_comunitarias");
+    $stmt = $conn->prepare("SELECT * FROM necesidades_comunitarias");
+    $stmt->execute();
+    $result = $stmt->get_result();
+
     if (!$result) {
         http_response_code(500);
-        throw new Exception("Error en la consulta: " . $conn->error);
+        echo json_encode(["error" => "Error en la consulta: " . $conn->error]);
+        return;
     }
+
     http_response_code(200);
     echo json_encode(["status" => 200, "data" => $result->fetch_all(MYSQLI_ASSOC)]);
 }
 
+// Agregar una nueva necesidad comunitaria
 function addNecesidadComunitaria($conn) {
-    if (!isset($_POST['descripcion'], $_POST['acciones'], $_POST['area_prioritaria'])) {
+    $input = json_decode(file_get_contents("php://input"), true);
+
+    if (!isset($input['descripcion'], $input['acciones'], $input['area_prioritaria'])) {
         http_response_code(400);
-        echo json_encode(["status" => 400, "error" => "Faltan campos requeridos"]);
-        exit;
+        echo json_encode(["error" => "Faltan campos requeridos"]);
+        return;
     }
+
     $stmt = $conn->prepare("INSERT INTO necesidades_comunitarias (descripcion, acciones, area_prioritaria) VALUES (?, ?, ?)");
-    $stmt->bind_param("sss", $_POST['descripcion'], $_POST['acciones'], $_POST['area_prioritaria']);
+    $stmt->bind_param("sss", $input['descripcion'], $input['acciones'], $input['area_prioritaria']);
+
     if (!$stmt->execute()) {
         http_response_code(500);
-        throw new Exception("Error al insertar: " . $stmt->error);
+        echo json_encode(["error" => "Error al insertar: " . $stmt->error]);
+        return;
     }
+
     http_response_code(201);
-    echo json_encode(["status" => 201, "message" => "Registro creado exitosamente."]);
+    echo json_encode(["message" => "Registro creado exitosamente."]);
 }
 
+// Eliminar una necesidad comunitaria por ID
 function deleteNecesidadComunitaria($conn) {
     if (!isset($_GET['id'])) {
         http_response_code(400);
-        echo json_encode(["status" => 400, "error" => "Falta el ID del registro"]);
-        exit;
+        echo json_encode(["error" => "Falta el ID del registro"]);
+        return;
     }
+
     $stmt = $conn->prepare("DELETE FROM necesidades_comunitarias WHERE id = ?");
     $stmt->bind_param("i", $_GET['id']);
+
     if (!$stmt->execute()) {
         http_response_code(500);
-        throw new Exception("Error al eliminar: " . $stmt->error);
+        echo json_encode(["error" => "Error al eliminar: " . $stmt->error]);
+        return;
     }
-    http_response_code(200);
-    echo json_encode(["status" => 200, "message" => "Registro eliminado exitosamente."]);
-}
 
+    http_response_code(200);
+    echo json_encode(["message" => "Registro eliminado exitosamente."]);
+}
 ?>

@@ -6,15 +6,23 @@ header('Content-Type: text/html; charset=UTF-8');
 
 use Dompdf\Dompdf;
 
-// Obtener fechas del formulario
-$fecha_inicio = $_GET['fecha_inicio'] ?? 'Sin especificar';
-$fecha_fin = $_GET['fecha_fin'] ?? 'Sin especificar';
+// Validar y obtener fechas del formulario
+$fecha_inicio = isset($_GET['fecha_inicio']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['fecha_inicio'])
+    ? mysqli_real_escape_string($conn, $_GET['fecha_inicio'])
+    : 'Sin especificar';
 
-// Consultas a la base de datos
-$accesibilidad_calidad = $conn->query("SELECT accesibilidad_servicios, actitud_personal, tarifas_ocultas, factores_mejora, disponibilidad_herramientas FROM accesibilidad_calidad")->fetch_all(MYSQLI_ASSOC);
-$percepcion_servicios = $conn->query("SELECT calidad_servicio, servicios_mejorar, cambios_recientes FROM percepcion_servicios")->fetch_all(MYSQLI_ASSOC);
+$fecha_fin = isset($_GET['fecha_fin']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['fecha_fin'])
+    ? mysqli_real_escape_string($conn, $_GET['fecha_fin'])
+    : 'Sin especificar';
 
-// 🔹 **Mapeo de escala de Likert COMPLETO**
+// Consultas a la base de datos con filtro por fechas
+$query_filters = ($fecha_inicio !== 'Sin especificar' && $fecha_fin !== 'Sin especificar') ? 
+    " WHERE fecha BETWEEN '$fecha_inicio' AND '$fecha_fin'" : "";
+
+$accesibilidad_calidad = $conn->query("SELECT accesibilidad_servicios, actitud_personal, tarifas_ocultas, factores_mejora, disponibilidad_herramientas FROM accesibilidad_calidad $query_filters")->fetch_all(MYSQLI_ASSOC);
+$percepcion_servicios = $conn->query("SELECT calidad_servicio, servicios_mejorar, cambios_recientes FROM percepcion_servicios $query_filters")->fetch_all(MYSQLI_ASSOC);
+
+// 🔹 **Mapeo de escala de Likert**
 $mapeoLikert = [
     'accesibilidad_servicios' => [1 => 'Muy difícil', 2 => 'Difícil', 3 => 'Neutral', 4 => 'Fácil', 5 => 'Muy fácil'],
     'actitud_personal' => [1 => 'Muy mala', 2 => 'Mala', 3 => 'Neutral', 4 => 'Buena', 5 => 'Muy buena'],
@@ -41,7 +49,7 @@ function consolidarDatos($data, $columnas, $mapeo = []) {
     return $resultados;
 }
 
-// 🔹 **Aplicar la consolidación con el mapeo**
+// Aplicar la consolidación con el mapeo
 $consolidadoAccesibilidad = consolidarDatos($accesibilidad_calidad, ['accesibilidad_servicios', 'actitud_personal', 'tarifas_ocultas', 'factores_mejora', 'disponibilidad_herramientas'], $mapeoLikert);
 $consolidadoPercepcion = consolidarDatos($percepcion_servicios, ['calidad_servicio', 'servicios_mejorar', 'cambios_recientes'], $mapeoLikert);
 
@@ -66,7 +74,7 @@ function generarTabla($titulo, $datosConsolidados, $isFirstTable = false) {
                 $porcentaje = $totalGeneral > 0 ? round(($frecuencia / $totalGeneral) * 100, 2) : 0;
                 $html .= "<tr><td>{$valor}</td><td>{$frecuencia}</td><td>{$porcentaje}%</td></tr>";
             }
-            $html .= "<tr><td>Total</td><td>{$totalGeneral}</td><td>100%</td></tr>
+            $html .= "<tr><td><strong>Total</strong></td><td><strong>{$totalGeneral}</strong></td><td><strong>100%</strong></td></tr>
                         </tbody></table></div>";
         }
     } else {
@@ -85,7 +93,7 @@ try {
     $css = file_get_contents('../../assets/css/pdf_styles.css');
     $html = "<html><head><title>Reporte VIH</title><style>{$css}</style></head><body>";
 
-    // 🔹 **Encabezado del reporte SIN LOGOS**
+    // 🔹 **Encabezado del reporte**
     $html .= "<div class='container'>
                 <h1>Reporte Consolidado de VIH</h1>
                 <h3>Período: " . htmlspecialchars($fecha_inicio) . " - " . htmlspecialchars($fecha_fin) . "</h3>";

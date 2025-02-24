@@ -1,23 +1,25 @@
 <?php
 class EventosSalud {
     public $id;
-    public $eventosRecientes;
-    public $medidasTomadas;
-    public $preparacionComunidad;
+    public $nombreEvento;
+    public $descripcion;
+    public $fecha;
+    public $acciones;
     public $usuarioID;
 
-    public function __construct($id, $eventosRecientes, $medidasTomadas, $preparacionComunidad, $usuarioID) {
+    public function __construct($id, $nombreEvento, $descripcion, $fecha, $acciones, $usuarioID) {
         $this->id = $id;
-        $this->eventosRecientes = $eventosRecientes;
-        $this->medidasTomadas = $medidasTomadas;
-        $this->preparacionComunidad = $preparacionComunidad;
+        $this->nombreEvento = $nombreEvento;
+        $this->descripcion = $descripcion;
+        $this->fecha = $fecha;
+        $this->acciones = $acciones;
         $this->usuarioID = $usuarioID;
     }
 
-    public static function create($eventosRecientes, $medidasTomadas, $preparacionComunidad, $usuarioID, $conn) {
-        $query = "INSERT INTO eventos_salud (eventos_recientes, medidas_tomadas, preparacion_comunidad, usuario_id) VALUES (?, ?, ?, ?)";
+    public static function create($nombreEvento, $descripcion, $fecha, $acciones, $usuarioID, $conn) {
+        $query = "INSERT INTO eventos_salud (nombre_evento, descripcion, fecha, acciones, usuario_id) VALUES (?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($query);
-        $stmt->bind_param("sssi", $eventosRecientes, $medidasTomadas, $preparacionComunidad, $usuarioID);
+        $stmt->bind_param("ssssi", $nombreEvento, $descripcion, $fecha, $acciones, $usuarioID);
         return $stmt->execute();
     }
 
@@ -26,7 +28,7 @@ class EventosSalud {
         $result = $conn->query($query);
         $data = [];
         while ($row = $result->fetch_assoc()) {
-            $data[] = new self($row['id'], $row['eventos_recientes'], $row['medidas_tomadas'], $row['preparacion_comunidad'], $row['usuario_id']);
+            $data[] = new self($row['id'], $row['nombre_evento'], $row['descripcion'], $row['fecha'], $row['acciones'], $row['usuario_id']);
         }
         return $data;
     }
@@ -38,15 +40,15 @@ class EventosSalud {
         $stmt->execute();
         $result = $stmt->get_result();
         if ($row = $result->fetch_assoc()) {
-            return new self($row['id'], $row['eventos_recientes'], $row['medidas_tomadas'], $row['preparacion_comunidad'], $row['usuario_id']);
+            return new self($row['id'], $row['nombre_evento'], $row['descripcion'], $row['fecha'], $row['acciones'], $row['usuario_id']);
         }
         return null;
     }
 
-    public static function update($id, $eventosRecientes, $medidasTomadas, $preparacionComunidad, $usuarioID, $conn) {
-        $query = "UPDATE eventos_salud SET eventos_recientes = ?, medidas_tomadas = ?, preparacion_comunidad = ?, usuario_id = ? WHERE id = ?";
+    public static function update($id, $nombreEvento, $descripcion, $fecha, $acciones, $usuarioID, $conn) {
+        $query = "UPDATE eventos_salud SET nombre_evento = ?, descripcion = ?, fecha = ?, acciones = ?, usuario_id = ? WHERE id = ?";
         $stmt = $conn->prepare($query);
-        $stmt->bind_param("sssii", $eventosRecientes, $medidasTomadas, $preparacionComunidad, $usuarioID, $id);
+        $stmt->bind_param("ssssii", $nombreEvento, $descripcion, $fecha, $acciones, $usuarioID, $id);
         return $stmt->execute();
     }
 
@@ -57,4 +59,3 @@ class EventosSalud {
         return $stmt->execute();
     }
 }
-?>

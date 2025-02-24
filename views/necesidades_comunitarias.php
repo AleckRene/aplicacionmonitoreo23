@@ -29,30 +29,19 @@ foreach ($records as $record) {
     foreach (['descripcion', 'acciones', 'area_prioritaria'] as $key) {
         $valor = $record[$key] ?? null;
         if ($valor !== null) {
-            if (!isset($consolidado[$key][$valor])) {
-                $consolidado[$key][$valor] = 0;
-            }
-            $consolidado[$key][$valor]++;
+            $consolidado[$key][$valor] = ($consolidado[$key][$valor] ?? 0) + 1;
         }
     }
 }
 
-// Calcular porcentajes y totales
-$total_cantidad = [];
-$total_porcentaje = [];
-
-foreach ($consolidado as $categoria => &$opciones) {
-    $total_cantidad[$categoria] = 0;
-    $total_porcentaje[$categoria] = 0;
-
-    foreach ($opciones as $opcion => $cantidad) {
-        $porcentaje = $total_registros > 0 ? round(($cantidad / $total_registros) * 100, 2) : 0;
-        $opciones[$opcion] = [
+// Calcular porcentajes
+foreach ($consolidado as &$opciones) {
+    $total_categoria = array_sum($opciones);
+    foreach ($opciones as &$cantidad) {
+        $cantidad = [
             'cantidad' => $cantidad,
-            'porcentaje' => $porcentaje,
+            'porcentaje' => ($total_categoria > 0) ? round(($cantidad / $total_categoria) * 100, 2) : 0
         ];
-        $total_cantidad[$categoria] += $cantidad;
-        $total_porcentaje[$categoria] += $porcentaje;
     }
 }
 ?>
@@ -66,33 +55,27 @@ foreach ($consolidado as $categoria => &$opciones) {
     <link rel="stylesheet" href="../assets/css/style.css">
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const successMessage = document.getElementById("successMessage");
             const modal = document.getElementById("modal");
             const openModalBtn = document.getElementById("openModal");
             const closeModalBtn = document.getElementById("closeModal");
 
-            // Mostrar el modal al hacer clic en el botón
             openModalBtn.addEventListener("click", function () {
                 modal.style.display = "block";
             });
 
-            // Ocultar el modal al hacer clic en el botón de cerrar
             closeModalBtn.addEventListener("click", function () {
                 modal.style.display = "none";
             });
 
-            // Ocultar el modal si se hace clic fuera del contenido
             window.addEventListener("click", function (event) {
                 if (event.target === modal) {
                     modal.style.display = "none";
                 }
             });
 
-            // Mostrar mensaje de éxito al enviar el formulario
             const form = document.querySelector("form");
             form.addEventListener("submit", function (event) {
                 event.preventDefault();
-
                 const formData = new FormData(form);
 
                 fetch(form.action, {
@@ -102,11 +85,9 @@ foreach ($consolidado as $categoria => &$opciones) {
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        successMessage.textContent = data.success;
-                        successMessage.style.display = "block";
-                        setTimeout(() => successMessage.style.display = "none", 3000);
+                        alert("Registro agregado con éxito.");
                         form.reset();
-                    } else if (data.error) {
+                    } else {
                         alert(data.error);
                     }
                 })
@@ -134,6 +115,7 @@ foreach ($consolidado as $categoria => &$opciones) {
                     <option value="Otros">Otros</option>
                 </select>
             </div>
+
             <div class="form-group">
                 <label for="acciones">Acciones Tomadas</label>
                 <select id="acciones" name="acciones" required>
@@ -145,6 +127,7 @@ foreach ($consolidado as $categoria => &$opciones) {
                     <option value="Ninguna">Ninguna</option>
                 </select>
             </div>
+
             <div class="form-group">
                 <label for="area_prioritaria">Área Prioritaria</label>
                 <select id="area_prioritaria" name="area_prioritaria" required>
@@ -156,11 +139,9 @@ foreach ($consolidado as $categoria => &$opciones) {
                     <option value="Otro">Otro</option>
                 </select>
             </div>
+
             <button class="btn btn-primary" type="submit">Agregar Necesidad</button>
         </form>
-
-        <!-- Mensaje de éxito -->
-        <div id="successMessage" class="alert alert-success" style="display: none; margin-bottom: 20px;"></div>
 
         <!-- Botón para abrir el modal -->
         <button id="openModal" class="btn btn-primary">Ver Registros</button>
@@ -189,12 +170,6 @@ foreach ($consolidado as $categoria => &$opciones) {
                                         <td><?= $datos['porcentaje'] ?>%</td>
                                     </tr>
                                 <?php endforeach; ?>
-                                <!-- Totales -->
-                                <tr>
-                                    <td><strong>Total</strong></td>
-                                    <td><strong><?= $total_cantidad[$categoria] ?></strong></td>
-                                    <td><strong><?= round($total_porcentaje[$categoria], 2) ?>%</strong></td>
-                                </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr><td colspan="3">No hay registros disponibles.</td></tr>

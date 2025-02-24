@@ -1,59 +1,85 @@
 <?php
 class AccesibilidadCalidad {
-    public $id;
-    public $accesibilidad_servicios;
-    public $actitud_personal;
-    public $tarifas_ocultas;
-    public $factores_mejora;
-    public $disponibilidad_herramientas;
+    private $conn;
+    private $table = "accesibilidad_calidad";
 
-    public function __construct($id, $accesibilidad_servicios, $actitud_personal, $tarifas_ocultas, $factores_mejora, $disponibilidad_herramientas) {
-        $this->id = $id;
-        $this->accesibilidad_servicios = $accesibilidad_servicios;
-        $this->actitud_personal = $actitud_personal;
-        $this->tarifas_ocultas = $tarifas_ocultas;
-        $this->factores_mejora = $factores_mejora;
-        $this->disponibilidad_herramientas = $disponibilidad_herramientas;
+    public function __construct($db) {
+        $this->conn = $db;
     }
 
-    public static function getAll($conn) {
-        $query = "SELECT * FROM accesibilidad_calidad";
-        $result = $conn->query($query);
-        $data = [];
-        while ($row = $result->fetch_assoc()) {
-            $data[] = new self(
-                $row['id'],
-                $row['accesibilidad_servicios'],
-                $row['actitud_personal'],
-                $row['tarifas_ocultas'],
-                $row['factores_mejora'],
-                $row['disponibilidad_herramientas']
-            );
+    /**
+     * Obtener todos los registros de accesibilidad y calidad.
+     */
+    public function getAll() {
+        try {
+            $query = "SELECT * FROM " . $this->table;
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute();
+            return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        } catch (Exception $e) {
+            return ["error" => $e->getMessage()];
         }
-        return $data;
     }
 
-    public static function create($accesibilidad_servicios, $actitud_personal, $tarifas_ocultas, $factores_mejora, $disponibilidad_herramientas, $conn) {
-        $query = "INSERT INTO accesibilidad_calidad (accesibilidad_servicios, actitud_personal, tarifas_ocultas, factores_mejora, disponibilidad_herramientas) 
-                  VALUES (?, ?, ?, ?, ?)";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param("sssss", $accesibilidad_servicios, $actitud_personal, $tarifas_ocultas, $factores_mejora, $disponibilidad_herramientas);
-        return $stmt->execute();
+    /**
+     * Crear un nuevo registro.
+     */
+    public function create($accesibilidad_servicios, $actitud_personal, $tarifas_ocultas, $factores_mejora, $disponibilidad_herramientas) {
+        try {
+            $query = "INSERT INTO " . $this->table . " 
+                      (accesibilidad_servicios, actitud_personal, tarifas_ocultas, factores_mejora, disponibilidad_herramientas) 
+                      VALUES (?, ?, ?, ?, ?)";
+            $stmt = $this->conn->prepare($query);
+            $stmt->bind_param("iiisi", $accesibilidad_servicios, $actitud_personal, $tarifas_ocultas, $factores_mejora, $disponibilidad_herramientas);
+
+            if ($stmt->execute()) {
+                return ["message" => "Registro creado exitosamente"];
+            } else {
+                return ["error" => "Error al insertar el registro"];
+            }
+        } catch (Exception $e) {
+            return ["error" => $e->getMessage()];
+        }
     }
 
-    public static function update($id, $accesibilidad_servicios, $actitud_personal, $tarifas_ocultas, $factores_mejora, $disponibilidad_herramientas, $conn) {
-        $query = "UPDATE accesibilidad_calidad 
-                  SET accesibilidad_servicios = ?, actitud_personal = ?, tarifas_ocultas = ?, factores_mejora = ?, disponibilidad_herramientas = ? 
-                  WHERE id = ?";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param("sssssi", $accesibilidad_servicios, $actitud_personal, $tarifas_ocultas, $factores_mejora, $disponibilidad_herramientas, $id);
-        return $stmt->execute();
+    /**
+     * Actualizar un registro existente.
+     */
+    public function update($id, $accesibilidad_servicios, $actitud_personal, $tarifas_ocultas, $factores_mejora, $disponibilidad_herramientas) {
+        try {
+            $query = "UPDATE " . $this->table . " 
+                      SET accesibilidad_servicios = ?, actitud_personal = ?, tarifas_ocultas = ?, factores_mejora = ?, disponibilidad_herramientas = ? 
+                      WHERE id = ?";
+            $stmt = $this->conn->prepare($query);
+            $stmt->bind_param("iiisii", $accesibilidad_servicios, $actitud_personal, $tarifas_ocultas, $factores_mejora, $disponibilidad_herramientas, $id);
+
+            if ($stmt->execute()) {
+                return ["message" => "Registro actualizado exitosamente"];
+            } else {
+                return ["error" => "Error al actualizar el registro"];
+            }
+        } catch (Exception $e) {
+            return ["error" => $e->getMessage()];
+        }
     }
 
-    public static function delete($id, $conn) {
-        $query = "DELETE FROM accesibilidad_calidad WHERE id = ?";
-        $stmt = $conn->prepare($query);
-        $stmt->bind_param("i", $id);
-        return $stmt->execute();
+    /**
+     * Eliminar un registro.
+     */
+    public function delete($id) {
+        try {
+            $query = "DELETE FROM " . $this->table . " WHERE id = ?";
+            $stmt = $this->conn->prepare($query);
+            $stmt->bind_param("i", $id);
+
+            if ($stmt->execute()) {
+                return ["message" => "Registro eliminado exitosamente"];
+            } else {
+                return ["error" => "Error al eliminar el registro"];
+            }
+        } catch (Exception $e) {
+            return ["error" => $e->getMessage()];
+        }
     }
 }
+?>

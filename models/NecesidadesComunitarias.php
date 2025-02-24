@@ -7,6 +7,7 @@ class NecesidadesComunitarias {
         $this->conn = $db;
     }
 
+    // Obtener todas las necesidades comunitarias
     public function getAll() {
         $query = "SELECT * FROM " . $this->table;
         $stmt = $this->conn->prepare($query);
@@ -14,29 +15,45 @@ class NecesidadesComunitarias {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function create($descripcion, $impacto, $propuestas) {
-        $query = "INSERT INTO " . $this->table . " (descripcion, impacto, propuestas) VALUES (:descripcion, :impacto, :propuestas)";
+    // Crear una nueva necesidad comunitaria
+    public function create($descripcion, $acciones, $area_prioritaria) {
+        $query = "INSERT INTO " . $this->table . " (descripcion, acciones, area_prioritaria) VALUES (:descripcion, :acciones, :area_prioritaria)";
         $stmt = $this->conn->prepare($query);
+
         $stmt->bindParam(":descripcion", $descripcion);
-        $stmt->bindParam(":impacto", $impacto);
-        $stmt->bindParam(":propuestas", $propuestas);
+        $stmt->bindParam(":acciones", $acciones);
+        $stmt->bindParam(":area_prioritaria", $area_prioritaria);
+
         return $stmt->execute();
     }
 
-    public function update($id, $descripcion, $impacto, $propuestas) {
-        $query = "UPDATE " . $this->table . " SET descripcion = :descripcion, impacto = :impacto, propuestas = :propuestas WHERE id = :id";
+    // Obtener una necesidad comunitaria por ID
+    public function getById($id) {
+        $query = "SELECT * FROM " . $this->table . " WHERE id = :id";
         $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(":id", $id);
+        $stmt->bindParam(":id", $id, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    // Actualizar una necesidad comunitaria
+    public function update($id, $descripcion, $acciones, $area_prioritaria) {
+        $query = "UPDATE " . $this->table . " SET descripcion = :descripcion, acciones = :acciones, area_prioritaria = :area_prioritaria WHERE id = :id";
+        $stmt = $this->conn->prepare($query);
+
+        $stmt->bindParam(":id", $id, PDO::PARAM_INT);
         $stmt->bindParam(":descripcion", $descripcion);
-        $stmt->bindParam(":impacto", $impacto);
-        $stmt->bindParam(":propuestas", $propuestas);
+        $stmt->bindParam(":acciones", $acciones);
+        $stmt->bindParam(":area_prioritaria", $area_prioritaria);
+
         return $stmt->execute();
     }
 
+    // Eliminar una necesidad comunitaria
     public function delete($id) {
         $query = "DELETE FROM " . $this->table . " WHERE id = :id";
         $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(":id", $id);
+        $stmt->bindParam(":id", $id, PDO::PARAM_INT);
         return $stmt->execute();
     }
 }

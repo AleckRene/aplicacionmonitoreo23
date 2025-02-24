@@ -22,7 +22,6 @@ if (!isset($_SESSION['consent_accepted']) || $_SESSION['consent_accepted'] !== t
     <title>Dashboard - Módulos</title>
     <link rel="stylesheet" href="../assets/css/style.css">
     <style>
-        /* Estilos Responsivos y Mejorados */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -31,8 +30,7 @@ if (!isset($_SESSION['consent_accepted']) || $_SESSION['consent_accepted'] !== t
             text-align: center;
         }
         .auth-container {
-            max-width: 90%;
-            width: 600px;
+            max-width: 600px;
             margin: 50px auto;
             background: white;
             padding: 20px;
@@ -63,11 +61,11 @@ if (!isset($_SESSION['consent_accepted']) || $_SESSION['consent_accepted'] !== t
         .btn.disabled {
             background-color: #6c757d;
             cursor: not-allowed;
+            opacity: 0.5;
         }
-        .btn:hover {
+        .btn:hover:not(.disabled) {
             opacity: 0.8;
         }
-        /* Modal para Módulos en Construcción */
         .modal {
             display: none;
             position: fixed;
@@ -92,7 +90,6 @@ if (!isset($_SESSION['consent_accepted']) || $_SESSION['consent_accepted'] !== t
             font-size: 24px;
             cursor: pointer;
         }
-        /* Responsividad */
         @media (max-width: 600px) {
             .auth-container {
                 width: 95%;
@@ -109,25 +106,21 @@ if (!isset($_SESSION['consent_accepted']) || $_SESSION['consent_accepted'] !== t
         <h1>Bienvenido al Dashboard</h1>
         <p>Hola, <strong><?php echo htmlspecialchars($_SESSION['username']); ?></strong>. Selecciona un módulo para comenzar:</p>
 
-        <!-- Botones de módulos -->
         <div class="module-buttons">
             <a href="consentimiento_informado.php" class="btn">Consentimiento Informado</a>
             <a href="modulo_general.php" class="btn active">Módulo General</a>
             <a href="modulo_vih.php" class="btn active">Módulo VIH</a>
 
-            <!-- Módulos en construcción con modal -->
             <button class="btn disabled" onclick="showModal('Módulo TB')">Módulo TB</button>
             <button class="btn disabled" onclick="showModal('Módulo Malaria')">Módulo Malaria</button>
             <button class="btn disabled" onclick="showModal('Módulo Pandemias')">Módulo Pandemias</button>
         </div>
 
-        <!-- Acciones adicionales -->
         <div class="actions">
             <a href="../logout.php" class="btn btn-danger">Cerrar sesión</a>
         </div>
     </div>
 
-    <!-- Modal para mostrar mensaje de módulos en construcción -->
     <div id="modal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="cerrarModal()">&times;</span>
@@ -138,18 +131,15 @@ if (!isset($_SESSION['consent_accepted']) || $_SESSION['consent_accepted'] !== t
     </div>
 
     <script>
-        // Mostrar modal con el mensaje personalizado
         function showModal(moduleName) {
             document.getElementById("modalTitle").innerText = moduleName;
             document.getElementById("modal").style.display = "block";
         }
 
-        // Cerrar modal
         function cerrarModal() {
             document.getElementById("modal").style.display = "none";
         }
 
-        // Cerrar modal si el usuario hace clic fuera de la ventana modal
         window.onclick = function(event) {
             let modal = document.getElementById("modal");
             if (event.target === modal) {

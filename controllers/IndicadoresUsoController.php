@@ -15,6 +15,10 @@ class IndicadoresUsoController {
     }
 
     public function create($data) {
+        if (!$this->validarDatos($data)) {
+            return ["error" => "Datos inválidos o incompletos."];
+        }
+        
         $indicador = new IndicadoresUso(
             null,
             $data['numero_usuarios'],
@@ -27,6 +31,10 @@ class IndicadoresUsoController {
     }
 
     public function update($data) {
+        if (!$this->validarDatos($data) || !isset($data['id'])) {
+            return ["error" => "Datos inválidos o ID faltante."];
+        }
+        
         $indicador = new IndicadoresUso(
             $data['id'],
             $data['numero_usuarios'],
@@ -39,7 +47,33 @@ class IndicadoresUsoController {
     }
 
     public function delete($id) {
+        if (!isset($id) || empty($id)) {
+            return ["error" => "ID de registro faltante."];
+        }
         return IndicadoresUso::delete($id, $this->conn);
+    }
+
+    private function validarDatos($data) {
+        if (!isset($data['numero_usuarios'], $data['nivel_actividad'], $data['frecuencia_recomendaciones'], $data['calidad_uso'], $data['usuario_id'])) {
+            return false;
+        }
+        if ($data['numero_usuarios'] < 0) {
+            return false;
+        }
+        $nivelesValidos = ["Bajo", "Moderadamente bajo", "Moderado", "Moderadamente alto", "Alto"];
+        $frecuenciasValidas = ["Raramente", "Ocasionalmente", "Moderadamente frecuente", "Frecuente", "Muy frecuente"];
+        $calidadesValidas = ["Deficiente", "Aceptable", "Buena", "Muy buena", "Excelente"];
+        
+        if (!in_array($data['nivel_actividad'], $nivelesValidos)) {
+            return false;
+        }
+        if (!in_array($data['frecuencia_recomendaciones'], $frecuenciasValidas)) {
+            return false;
+        }
+        if (!in_array($data['calidad_uso'], $calidadesValidas)) {
+            return false;
+        }
+        return true;
     }
 }
 
@@ -63,14 +97,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (isset($data['id'])) {
                     echo json_encode($controller->delete($data['id']));
                 } else {
-                    echo json_encode(['error' => 'Falta el ID para eliminar un registro']);
+                    echo json_encode(["error" => "Falta el ID para eliminar un registro"]);
                 }
                 break;
             default:
-                echo json_encode(['error' => 'Acción no válida']);
+                echo json_encode(["error" => "Acción no válida"]);
         }
     } else {
-        echo json_encode(['error' => 'No se proporcionó una acción']);
+        echo json_encode(["error" => "No se proporcionó una acción"]);
     }
 }
 ?>

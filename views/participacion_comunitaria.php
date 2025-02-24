@@ -7,55 +7,39 @@ if (!isset($_SESSION['user_id'])) {
 include '../config/config.php';
 
 // Consulta para obtener los registros
-$query = "
-    SELECT DISTINCT 
-        id,
-        nivel_participacion,
-        estrategias_mejora,
-        grupos_comprometidos
-    FROM participacion_comunitaria";
-
+$query = "SELECT id, nivel_participacion, estrategias_mejora, grupos_comprometidos FROM participacion_comunitaria";
 $result = $conn->query($query);
 
 // Verificar si hay registros
-$records = [];
-if ($result && $result->num_rows > 0) {
-    $records = $result->fetch_all(MYSQLI_ASSOC);
-}
+$records = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+$total_registros = count($records);
 
 // Consolidar datos para la tabla
-$total_registros = count($records);
 $consolidado = [
     'nivel_participacion' => [],
     'grupos_comprometidos' => [],
     'estrategias_mejora' => [],
 ];
 
-$total_registros = count($records);
-
 foreach ($records as $record) {
     foreach ($consolidado as $categoria => &$opciones) {
         if (!empty($record[$categoria])) {
             $valores = explode(',', $record[$categoria]); // Separar valores por coma
-            $valores = array_map('trim', $valores); // Eliminar espacios en blanco
+            $valores = array_map('trim', $valores); // Limpiar espacios en blanco
             $valores = array_unique($valores); // Evitar duplicados dentro del mismo registro
 
             foreach ($valores as $valor) {
                 if (!empty($valor)) {
-                    if (!isset($opciones[$valor])) {
-                        $opciones[$valor] = ['cantidad' => 0, 'porcentaje' => 0];
-                    }
-                    $opciones[$valor]['cantidad']++; // Contar correctamente los valores
+                    $opciones[$valor]['cantidad'] = ($opciones[$valor]['cantidad'] ?? 0) + 1;
                 }
             }
         }
     }
 }
 
-// Calcular porcentajes correctamente
-foreach ($consolidado as $categoria => &$opciones) {
-    $total_categoria = array_sum(array_column($opciones, 'cantidad')); // Sumar la cantidad total por categoría
-
+// Calcular porcentajes
+foreach ($consolidado as &$opciones) {
+    $total_categoria = array_sum(array_column($opciones, 'cantidad'));
     foreach ($opciones as &$datos) {
         $datos['porcentaje'] = ($total_categoria > 0) ? round(($datos['cantidad'] / $total_categoria) * 100, 2) : 0;
     }
@@ -71,51 +55,20 @@ foreach ($consolidado as $categoria => &$opciones) {
     <link rel="stylesheet" href="../assets/css/style.css">
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const successMessage = document.getElementById("successMessage");
             const modal = document.getElementById("modal");
-            const openModalBtn = document.getElementById("openModal");
-            const closeModalBtn = document.getElementById("closeModal");
+            document.getElementById("openModal").addEventListener("click", () => modal.style.display = "block");
+            document.getElementById("closeModal").addEventListener("click", () => modal.style.display = "none");
+            window.onclick = event => { if (event.target === modal) modal.style.display = "none"; };
 
-            // Mostrar el modal al hacer clic en el botón
-            openModalBtn.addEventListener("click", function () {
-                modal.style.display = "block";
-            });
-
-            // Ocultar el modal al hacer clic en el botón de cerrar
-            closeModalBtn.addEventListener("click", function () {
-                modal.style.display = "none";
-            });
-
-            // Ocultar el modal si se hace clic fuera del contenido
-            window.addEventListener("click", function (event) {
-                if (event.target === modal) {
-                    modal.style.display = "none";
-                }
-            });
-
-            // Mostrar mensaje de éxito al enviar el formulario
-            const form = document.querySelector("form");
-            form.addEventListener("submit", function (event) {
+            document.querySelector("form").addEventListener("submit", function (event) {
                 event.preventDefault();
-
-                const formData = new FormData(form);
-
-                fetch(form.action, {
-                    method: "POST",
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        successMessage.textContent = data.success;
-                        successMessage.style.display = "block";
-                        setTimeout(() => successMessage.style.display = "none", 3000);
-                        form.reset();
-                    } else if (data.error) {
-                        alert(data.error);
-                    }
-                })
-                .catch(error => console.error("Error en la solicitud:", error));
+                fetch(this.action, { method: "POST", body: new FormData(this) })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.success ?? data.error);
+                        if (data.success) this.reset();
+                    })
+                    .catch(error => console.error("Error:", error));
             });
         });
     </script>
@@ -124,12 +77,8 @@ foreach ($consolidado as $categoria => &$opciones) {
 <body>
     <div class="container">
         <h1 class="title">Participación Comunitaria</h1>
-        <p class="description">Esta sección evalúa el nivel de participación de la comunidad, los grupos involucrados y las estrategias que podrían mejorar su implicación.</p>
+        <p class="description">Evalúa la participación de la comunidad y sus estrategias de mejora.</p>
 
-        <!-- Mensaje de éxito -->
-        <div id="successMessage" class="alert alert-success" style="display: none; margin-bottom: 20px;"></div>
-
-        <!-- Sección de Formulario -->
         <form class="form-container" action="../api/participacion_comunitaria.php" method="POST">
             <div class="form-group">
                 <label for="nivel_participacion">Nivel de Participación</label>
@@ -156,7 +105,7 @@ foreach ($consolidado as $categoria => &$opciones) {
             </div>
 
             <div class="form-group">
-                <label for="estrategias_mejora">Estrategias para Mejorar</label>
+                <label for="estrategias_mejora">Estrategias de Mejora</label>
                 <select id="estrategias_mejora" name="estrategias_mejora" required>
                     <option value="">Seleccione una opción</option>
                     <option value="Capacitaciones">Capacitaciones</option>
@@ -167,40 +116,30 @@ foreach ($consolidado as $categoria => &$opciones) {
                 </select>
             </div>
 
-            <button class="btn btn-primary" type="submit">Agregar Participación</button>
+            <button class="btn btn-primary" type="submit">Registrar Participación</button>
         </form>
 
-        <!-- Botón para abrir el modal -->
         <button id="openModal" class="btn btn-primary">Ver Registros</button>
 
-        <!-- Modal -->
         <div id="modal" class="modal" style="display: none;">
             <div class="modal-content">
                 <span id="closeModal" class="close">&times;</span>
                 <h2>Registros de Participación</h2>
                 <table class="styled-table">
                     <thead>
-                        <tr>
-                            <th>Opción</th>
-                            <th>Cantidad</th>
-                            <th>Porcentaje</th>
-                        </tr>
+                        <tr><th>Opción</th><th>Cantidad</th><th>Porcentaje</th></tr>
                     </thead>
                     <tbody>
                         <?php if (!empty($consolidado)): ?>
                             <?php foreach ($consolidado as $categoria => $opciones): ?>
                                 <tr><th colspan="3"><?= ucwords(str_replace('_', ' ', $categoria)) ?></th></tr>
-                                <?php if (is_array($opciones) && !empty($opciones)): ?>
-                                    <?php foreach ($opciones as $opcion => $datos): ?>
-                                        <tr>
-                                            <td><?= htmlspecialchars($opcion) ?></td>
-                                            <td><?= $datos['cantidad'] ?></td>
-                                            <td><?= $datos['porcentaje'] ?>%</td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <tr><td colspan="3">No hay datos disponibles para esta categoría.</td></tr>
-                                <?php endif; ?>
+                                <?php foreach ($opciones as $opcion => $datos): ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($opcion) ?></td>
+                                        <td><?= $datos['cantidad'] ?></td>
+                                        <td><?= $datos['porcentaje'] ?>%</td>
+                                    </tr>
+                                <?php endforeach; ?>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr><td colspan="3">No hay registros disponibles.</td></tr>
@@ -210,7 +149,6 @@ foreach ($consolidado as $categoria => &$opciones) {
             </div>
         </div>
 
-        <!-- Botón para volver -->
         <div class="actions">
             <a href="../views/modulo_general.php" class="btn btn-secondary">Volver al Módulo General</a>
         </div>

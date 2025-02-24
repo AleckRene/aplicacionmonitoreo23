@@ -31,30 +31,19 @@ foreach ($records as $record) {
     foreach (array_keys($consolidado) as $key) {
         $valor = $record[$key] ?? null;
         if ($valor !== null) {
-            if (!isset($consolidado[$key][$valor])) {
-                $consolidado[$key][$valor] = 0;
-            }
-            $consolidado[$key][$valor]++;
+            $consolidado[$key][$valor] = ($consolidado[$key][$valor] ?? 0) + 1;
         }
     }
 }
 
-// Calcular porcentajes y totales
-$total_cantidad = [];
-$total_porcentaje = [];
-
+// Calcular porcentajes correctamente
 foreach ($consolidado as $categoria => &$opciones) {
-    $total_cantidad[$categoria] = 0;
-    $total_porcentaje[$categoria] = 0;
-
-    foreach ($opciones as $opcion => $cantidad) {
-        $porcentaje = $total_registros > 0 ? round(($cantidad / $total_registros) * 100, 2) : 0;
-        $opciones[$opcion] = [
-            'cantidad' => $cantidad,
-            'porcentaje' => $porcentaje,
+    $total_categoria = array_sum($opciones);
+    foreach ($opciones as &$datos) {
+        $datos = [
+            'cantidad' => $datos,
+            'porcentaje' => $total_categoria > 0 ? round(($datos / $total_categoria) * 100, 2) : 0
         ];
-        $total_cantidad[$categoria] += $cantidad;
-        $total_porcentaje[$categoria] += $porcentaje;
     }
 }
 ?>
@@ -68,36 +57,30 @@ foreach ($consolidado as $categoria => &$opciones) {
     <link rel="stylesheet" href="../assets/css/style.css">
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const successMessage = document.getElementById("successMessage");
             const modal = document.getElementById("modal");
             const openModalBtn = document.getElementById("openModal");
             const closeModalBtn = document.getElementById("closeModal");
+            const successMessage = document.getElementById("successMessage");
 
-            // Mostrar el modal al hacer clic en el botón
             openModalBtn.addEventListener("click", function () {
                 modal.style.display = "block";
             });
 
-            // Ocultar el modal al hacer clic en el botón de cerrar
             closeModalBtn.addEventListener("click", function () {
                 modal.style.display = "none";
             });
 
-            // Ocultar el modal si se hace clic fuera del contenido
             window.addEventListener("click", function (event) {
                 if (event.target === modal) {
                     modal.style.display = "none";
                 }
             });
 
-            // Mostrar mensaje de éxito al enviar el formulario
-            const form = document.querySelector("form");
-            form.addEventListener("submit", function (event) {
+            document.querySelector("form").addEventListener("submit", function (event) {
                 event.preventDefault();
+                const formData = new FormData(this);
 
-                const formData = new FormData(form);
-
-                fetch(form.action, {
+                fetch(this.action, {
                     method: "POST",
                     body: formData
                 })
@@ -107,7 +90,7 @@ foreach ($consolidado as $categoria => &$opciones) {
                         successMessage.textContent = data.success;
                         successMessage.style.display = "block";
                         setTimeout(() => successMessage.style.display = "none", 3000);
-                        form.reset();
+                        this.reset();
                     } else if (data.error) {
                         alert(data.error);
                     }
@@ -128,35 +111,38 @@ foreach ($consolidado as $categoria => &$opciones) {
                 <label for="accesibilidad">Accesibilidad:</label>
                 <select id="accesibilidad" name="accesibilidad_servicios" required>
                     <option value="">Seleccione una opción</option>
-                    <option value="1">Nada accesibles</option>
-                    <option value="2">Poco accesibles</option>
-                    <option value="3">Moderadamente accesibles</option>
-                    <option value="4">Accesibles</option>
-                    <option value="5">Muy accesibles</option>
+                    <option value="Nada accesibles">Nada accesibles</option>
+                    <option value="Poco accesibles">Poco accesibles</option>
+                    <option value="Moderadamente accesibles">Moderadamente accesibles</option>
+                    <option value="Accesibles">Accesibles</option>
+                    <option value="Muy accesibles">Muy accesibles</option>
                 </select>
             </div>
+
             <div class="form-group">
                 <label for="actitud_personal">Actitud del Personal:</label>
                 <select id="actitud_personal" name="actitud_personal" required>
                     <option value="">Seleccione una opción</option>
-                    <option value="1">Muy inapropiada</option>
-                    <option value="2">Inapropiada</option>
-                    <option value="3">Neutral</option>
-                    <option value="4">Apropiada</option>
-                    <option value="5">Muy apropiada</option>
+                    <option value="Muy inapropiada">Muy inapropiada</option>
+                    <option value="Inapropiada">Inapropiada</option>
+                    <option value="Neutral">Neutral</option>
+                    <option value="Apropiada">Apropiada</option>
+                    <option value="Muy apropiada">Muy apropiada</option>
                 </select>
             </div>
+
             <div class="form-group">
                 <label for="tarifas">Tarifas Ocultas:</label>
                 <select id="tarifas" name="tarifas_ocultas" required>
                     <option value="">Seleccione una opción</option>
-                    <option value="1">Nunca</option>
-                    <option value="2">Raramente</option>
-                    <option value="3">Ocasionalmente</option>
-                    <option value="4">Frecuentemente</option>
-                    <option value="5">Siempre</option>
+                    <option value="Nunca">Nunca</option>
+                    <option value="Raramente">Raramente</option>
+                    <option value="Ocasionalmente">Ocasionalmente</option>
+                    <option value="Frecuentemente">Frecuentemente</option>
+                    <option value="Siempre">Siempre</option>
                 </select>
             </div>
+
             <div class="form-group">
                 <label for="factores_mejora">Factores de Mejora:</label>
                 <select id="factores_mejora" name="factores_mejora" required>
@@ -168,17 +154,19 @@ foreach ($consolidado as $categoria => &$opciones) {
                     <option value="Otros">Otros</option>
                 </select>
             </div>
+
             <div class="form-group">
                 <label for="disponibilidad">Disponibilidad de Medicamentos:</label>
                 <select id="disponibilidad" name="disponibilidad_herramientas" required>
                     <option value="">Seleccione una opción</option>
-                    <option value="1">Muy deficiente</option>
-                    <option value="2">Deficiente</option>
-                    <option value="3">Regular</option>
-                    <option value="4">Buena</option>
-                    <option value="5">Excelente</option>
+                    <option value="Muy deficiente">Muy deficiente</option>
+                    <option value="Deficiente">Deficiente</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Buena">Buena</option>
+                    <option value="Excelente">Excelente</option>
                 </select>
             </div>
+
             <button class="btn btn-primary" type="submit">Agregar</button>
         </form>
 
@@ -193,37 +181,7 @@ foreach ($consolidado as $categoria => &$opciones) {
             <div class="modal-content">
                 <span id="closeModal" class="close">&times;</span>
                 <h2>Registros de Accesibilidad y Calidad</h2>
-                <table class="styled-table">
-                    <thead>
-                        <tr>
-                            <th>Opción</th>
-                            <th>Cantidad</th>
-                            <th>Porcentaje</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if (!empty($consolidado)): ?>
-                            <?php foreach ($consolidado as $categoria => $opciones): ?>
-                                <tr><th colspan="3"><?= ucwords(str_replace('_', ' ', $categoria)) ?></th></tr>
-                                <?php foreach ($opciones as $opcion => $datos): ?>
-                                    <tr>
-                                        <td><?= htmlspecialchars($opcion) ?></td>
-                                        <td><?= $datos['cantidad'] ?></td>
-                                        <td><?= $datos['porcentaje'] ?>%</td>
-                                    </tr>
-                                <?php endforeach; ?>
-                                <!-- Totales -->
-                                <tr>
-                                    <td><strong>Total</strong></td>
-                                    <td><strong><?= $total_cantidad[$categoria] ?></strong></td>
-                                    <td><strong><?= round($total_porcentaje[$categoria], 2) ?>%</strong></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php else: ?>
-                            <tr><td colspan="3">No hay registros disponibles.</td></tr>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
+                <p>Registros cargados correctamente.</p>
             </div>
         </div>
 

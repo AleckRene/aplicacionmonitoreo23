@@ -6,24 +6,30 @@ header('Content-Type: text/html; charset=UTF-8');
 
 use Dompdf\Dompdf;
 
-// Obtener fechas del formulario
-$fecha_inicio = $_GET['fecha_inicio'] ?? 'Sin especificar';
-$fecha_fin = $_GET['fecha_fin'] ?? 'Sin especificar';
+// Validar y obtener fechas del formulario
+$fecha_inicio = isset($_GET['fecha_inicio']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['fecha_inicio'])
+    ? mysqli_real_escape_string($conn, $_GET['fecha_inicio'])
+    : 'Sin especificar';
 
-// Consultas a la base de datos
-$indicadores_uso = $conn->query("SELECT nivel_actividad, frecuencia_recomendaciones, calidad_uso FROM indicadores_uso")->fetch_all(MYSQLI_ASSOC);
-$participacion_comunitaria = $conn->query("SELECT nivel_participacion, grupos_comprometidos, estrategias_mejora FROM participacion_comunitaria")->fetch_all(MYSQLI_ASSOC);
-$eventos_salud = $conn->query("SELECT nombre_evento, descripcion, acciones FROM eventos_salud")->fetch_all(MYSQLI_ASSOC);
-$necesidades_comunitarias = $conn->query("SELECT descripcion, acciones, area_prioritaria FROM necesidades_comunitarias")->fetch_all(MYSQLI_ASSOC);
+$fecha_fin = isset($_GET['fecha_fin']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['fecha_fin'])
+    ? mysqli_real_escape_string($conn, $_GET['fecha_fin'])
+    : 'Sin especificar';
 
-// 🔹 **Mapeo de escala de Likert COMPLETO**
+// Consultas a la base de datos con filtro por fechas
+$query_filters = ($fecha_inicio !== 'Sin especificar' && $fecha_fin !== 'Sin especificar') ? 
+    " WHERE fecha BETWEEN '$fecha_inicio' AND '$fecha_fin'" : "";
+
+$indicadores_uso = $conn->query("SELECT nivel_actividad, frecuencia_recomendaciones, calidad_uso FROM indicadores_uso $query_filters")->fetch_all(MYSQLI_ASSOC);
+$participacion_comunitaria = $conn->query("SELECT nivel_participacion, grupos_comprometidos, estrategias_mejora FROM participacion_comunitaria $query_filters")->fetch_all(MYSQLI_ASSOC);
+$eventos_salud = $conn->query("SELECT nombre_evento, descripcion, acciones FROM eventos_salud $query_filters")->fetch_all(MYSQLI_ASSOC);
+$necesidades_comunitarias = $conn->query("SELECT descripcion, acciones, area_prioritaria FROM necesidades_comunitarias $query_filters")->fetch_all(MYSQLI_ASSOC);
+
+// 🔹 **Mapeo de escala de Likert**
 $mapeoLikert = [
     'nivel_actividad' => [1 => 'Nada activa', 2 => 'Poco activa', 3 => 'Moderadamente activa', 4 => 'Activa', 5 => 'Muy activa'],
     'frecuencia_recomendaciones' => [1 => 'Raramente', 2 => 'Ocasionalmente', 3 => 'Moderadamente frecuente', 4 => 'Frecuente', 5 => 'Muy frecuente'],
     'calidad_uso' => [1 => 'Deficiente', 2 => 'Aceptable', 3 => 'Buena', 4 => 'Muy buena', 5 => 'Excelente'],
     'nivel_participacion' => [1 => 'Bajo', 2 => 'Moderado', 3 => 'Alto'],
-    'grupos_comprometidos' => [1 => 'Brigadistas', 2 => 'Líderes locales', 3 => 'Juntas comunitarias', 4 => 'ONGs locales', 5 => 'Voluntarios'],
-    'estrategias_mejora' => [1 => 'Capacitaciones', 2 => 'Red de apoyo comunitario', 3 => 'Mayor difusión', 4 => 'Uso de herramientas digitales', 5 => 'Colaboración con entidades'],
     'area_prioritaria' => [1 => 'Salud', 2 => 'Educación', 3 => 'Infraestructura', 4 => 'Seguridad', 5 => 'Medio ambiente']
 ];
 
@@ -42,7 +48,7 @@ function consolidarDatos($data, $columnas, $mapeo = []) {
     return $resultados;
 }
 
-// 🔹 **Aplicar la consolidación con el mapeo**
+// Aplicar la consolidación con el mapeo
 $consolidadoIndicadores = consolidarDatos($indicadores_uso, ['nivel_actividad', 'frecuencia_recomendaciones', 'calidad_uso'], $mapeoLikert);
 $consolidadoParticipacion = consolidarDatos($participacion_comunitaria, ['nivel_participacion', 'grupos_comprometidos', 'estrategias_mejora'], $mapeoLikert);
 $consolidadoEventos = consolidarDatos($eventos_salud, ['nombre_evento', 'descripcion', 'acciones']);
@@ -69,7 +75,7 @@ function generarTabla($titulo, $datosConsolidados, $isFirstTable = false) {
                 $porcentaje = $totalGeneral > 0 ? round(($frecuencia / $totalGeneral) * 100, 2) : 0;
                 $html .= "<tr><td>{$valor}</td><td>{$frecuencia}</td><td>{$porcentaje}%</td></tr>";
             }
-            $html .= "<tr><td>Total</td><td>{$totalGeneral}</td><td>100%</td></tr>
+            $html .= "<tr><td><strong>Total</strong></td><td><strong>{$totalGeneral}</strong></td><td><strong>100%</strong></td></tr>
                         </tbody></table></div>";
         }
     } else {
@@ -88,7 +94,7 @@ try {
     $css = file_get_contents('../../assets/css/pdf_styles.css');
     $html = "<html><head><title>Reporte General</title><style>{$css}</style></head><body>";
 
-    // 🔹 **Encabezado del reporte SIN LOGOS**
+    // 🔹 **Encabezado del reporte**
     $html .= "<div class='container'>
                 <h1>Reporte General</h1>
                 <h3>Período: " . htmlspecialchars($fecha_inicio) . " - " . htmlspecialchars($fecha_fin) . "</h3>";

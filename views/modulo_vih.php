@@ -14,7 +14,6 @@ if (empty($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
     <title>Módulo VIH</title>
     <link rel="stylesheet" href="../assets/css/style.css">
     <style>
-        /* Estilos Responsivos */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -23,8 +22,7 @@ if (empty($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
             text-align: center;
         }
         .auth-container {
-            max-width: 90%;
-            width: 600px;
+            max-width: 600px;
             margin: 50px auto;
             background: white;
             padding: 20px;
@@ -93,7 +91,6 @@ if (empty($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
         button:hover {
             background-color: #0056b3;
         }
-        /* Responsividad */
         @media (max-width: 600px) {
             .auth-container {
                 width: 95%;
@@ -120,7 +117,6 @@ if (empty($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
             <button id="abrirModalReporte" class="btn btn-secondary">Generar Reporte VIH</button>
         </div>
 
-        <!-- Modal para seleccionar fechas y periodicidad -->
         <div id="modalReporte" class="modal">
             <div class="modal-content">
                 <span class="close" onclick="cerrarModal()">&times;</span>
@@ -143,31 +139,27 @@ if (empty($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
                         <option value="anual">Anual</option>
                     </select>
 
-                    <input type="hidden" name="modulo" value="vih"> <!-- Se agrega para que sepa qué módulo se reporta -->
+                    <input type="hidden" name="modulo" value="vih">
 
                     <button type="submit">Generar Reporte</button>
                 </form>
             </div>
         </div>
 
-        <!-- Volver al Dashboard -->
         <div class="actions">
             <a href="../views/dashboard.php" class="btn btn-primary">Volver al Dashboard</a>
         </div>
     </div>
 
     <script>
-        // Mostrar modal
         document.getElementById("abrirModalReporte").addEventListener("click", function() {
             document.getElementById("modalReporte").style.display = "block";
         });
 
-        // Cerrar modal
         function cerrarModal() {
             document.getElementById("modalReporte").style.display = "none";
         }
 
-        // Cerrar modal si el usuario hace clic fuera de la ventana modal
         window.onclick = function(event) {
             let modal = document.getElementById("modalReporte");
             if (event.target === modal) {
