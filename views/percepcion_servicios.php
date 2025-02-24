@@ -1,5 +1,5 @@
 <?php
-session_start(); // Inicia la sesión
+session_start();
 if (!isset($_SESSION['user_id'])) {
     header("Location: ../views/login.php");
     exit;
@@ -7,43 +7,69 @@ if (!isset($_SESSION['user_id'])) {
 
 include '../config/config.php';
 
-// Consulta para obtener los registros
-$query = "SELECT * FROM percepcion_servicios";
+// **Revisamos las columnas reales de la tabla**
+$query = "SHOW COLUMNS FROM percepcion_servicios";
+$result_columns = $conn->query($query);
+$columnas_validas = [];
+
+if ($result_columns && $result_columns->num_rows > 0) {
+    while ($row = $result_columns->fetch_assoc()) {
+        $columnas_validas[] = $row['Field'];
+    }
+}
+
+// **Verificamos qué columnas existen antes de hacer la consulta principal**
+$columnas_existentes = array_intersect(
+    ['calidad_servicio', 'servicios_mejorar', 'cambios_recientes'], 
+    $columnas_validas
+);
+
+// Si la tabla no tiene columnas válidas, detenemos el proceso
+if (empty($columnas_existentes)) {
+    die("Error: No se encontraron columnas válidas en la tabla 'percepcion_servicios'.");
+}
+
+// Generamos la consulta solo con las columnas existentes
+$query = "SELECT " . implode(', ', $columnas_existentes) . " FROM percepcion_servicios";
 $result = $conn->query($query);
 
 // Verificar si hay registros
-$records = [];
-if ($result && $result->num_rows > 0) {
-    $records = $result->fetch_all(MYSQLI_ASSOC);
-}
+$records = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+$total_registros = count($records);
 
 // Consolidar datos para la tabla
-$total_registros = count($records);
-$consolidado = [
-    'calidad_servicio' => [],
-    'servicios_mejorar' => [],
-    'cambios_recientes' => []
-];
+$consolidado = [];
+foreach ($columnas_existentes as $columna) {
+    $consolidado[$columna] = [];
+}
 
 foreach ($records as $record) {
-    foreach (['calidad_servicio', 'servicios_mejorar', 'cambios_recientes'] as $key) {
-        $valor = $record[$key] ?? null;
-        if ($valor !== null) {
-            if (!isset($consolidado[$key][$valor])) {
-                $consolidado[$key][$valor] = 0;
+    foreach ($consolidado as $categoria => &$opciones) {
+        if (!empty($record[$categoria])) {
+            $valores = explode(',', $record[$categoria]);
+            $valores = array_map('trim', $valores);
+            $valores = array_unique($valores);
+
+            foreach ($valores as $valor) {
+                if (!empty($valor)) {
+                    $opciones[$valor] = ($opciones[$valor] ?? 0) + 1;
+                }
             }
-            $consolidado[$key][$valor]++;
         }
     }
 }
 
 // Calcular porcentajes
-foreach ($consolidado as $categoria => &$opciones) {
-    foreach ($opciones as $opcion => &$datos) {
-        $datos = [
-            'cantidad' => $datos,
-            'porcentaje' => $total_registros > 0 ? round(($datos / $total_registros) * 100, 2) : 0,
-        ];
+$consolidadoPorcentajes = [];
+$totalesPorCategoria = [];
+
+foreach ($consolidado as $categoria => $opciones) {
+    $totalCategoria = array_sum($opciones);
+    $totalesPorCategoria[$categoria] = $totalCategoria;
+
+    foreach ($opciones as $opcion => $cantidad) {
+        $porcentaje = ($totalCategoria > 0) ? round(($cantidad / $totalCategoria) * 100, 2) : 0;
+        $consolidadoPorcentajes[$categoria][$opcion] = ['cantidad' => $cantidad, 'porcentaje' => $porcentaje];
     }
 }
 ?>
@@ -57,68 +83,32 @@ foreach ($consolidado as $categoria => &$opciones) {
     <link rel="stylesheet" href="../assets/css/style.css">
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const form = document.getElementById("percepcionForm");
-            const successMessage = document.getElementById("successMessage");
-            const errorMessage = document.getElementById("errorMessage");
             const modal = document.getElementById("modal");
-            const openModalBtn = document.getElementById("openModal");
-            const closeModalBtn = document.getElementById("closeModal");
+            document.getElementById("openModal").addEventListener("click", () => modal.style.display = "block");
+            document.getElementById("closeModal").addEventListener("click", () => modal.style.display = "none");
+            window.onclick = event => { if (event.target === modal) modal.style.display = "none"; };
 
-            // Mostrar modal
-            openModalBtn.addEventListener("click", function () {
-                modal.style.display = "block";
-            });
-
-            // Cerrar modal
-            closeModalBtn.addEventListener("click", function () {
-                modal.style.display = "none";
-            });
-
-            window.addEventListener("click", function (event) {
-                if (event.target === modal) {
-                    modal.style.display = "none";
-                }
-            });
-
-            // Manejo del formulario
-            form.addEventListener("submit", function (event) {
+            document.querySelector("form").addEventListener("submit", function (event) {
                 event.preventDefault();
-                const formData = new FormData(form);
-
-                fetch("../api/percepcion_servicios.php", {
-                    method: "POST",
-                    body: formData,
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        successMessage.textContent = data.success;
-                        successMessage.style.display = "block";
-                        errorMessage.style.display = "none";
-                        form.reset();
-                    } else if (data.error) {
-                        errorMessage.textContent = data.error;
-                        errorMessage.style.display = "block";
-                        successMessage.style.display = "none";
-                    }
-                })
-                .catch(error => {
-                    errorMessage.textContent = "Error al enviar los datos.";
-                    errorMessage.style.display = "block";
-                    successMessage.style.display = "none";
-                    console.error("Error:", error);
-                });
+                fetch(this.action, { method: "POST", body: new FormData(this) })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.success ?? data.error);
+                        if (data.success) this.reset();
+                    })
+                    .catch(error => console.error("Error:", error));
             });
         });
     </script>
 </head>
+
 <body>
     <div class="container">
         <h1 class="title">Percepción de Servicios</h1>
         <p class="description">Esta sección recoge la opinión de los usuarios sobre la calidad de los servicios, las áreas a mejorar y los cambios recientes observados.</p>
 
         <!-- Formulario -->
-        <form id="percepcionForm" class="form-container">
+        <form class="form-container" action="../api/percepcion_servicios.php" method="POST">
             <div class="form-group">
                 <label for="calidad_servicio">Calidad del Servicio</label>
                 <select id="calidad_servicio" name="calidad_servicio" required>
@@ -158,48 +148,41 @@ foreach ($consolidado as $categoria => &$opciones) {
             <button class="btn btn-primary" type="submit">Agregar Percepción</button>
         </form>
 
-        <!-- Contenedores de mensajes -->
-        <div id="successMessage" class="alert alert-success" style="display: none;"></div>
-        <div id="errorMessage" class="alert alert-danger" style="display: none;"></div>
+        <button id="openModal" class="btn btn-primary">Ver Consolidado</button>
 
-        <!-- Botones adicionales -->
-        <div class="actions">
-            <button id="openModal" class="btn btn-primary">Ver Registros</button>
-            <a href="../views/modulo_vih.php" class="btn btn-secondary">Volver al Módulo VIH</a>
-        </div>
-
-        <!-- Modal -->
+        <!-- Modal de datos consolidados -->
         <div id="modal" class="modal" style="display: none;">
             <div class="modal-content">
                 <span id="closeModal" class="close">&times;</span>
-                <h2>Registros de Percepción</h2>
+                <h2>Datos Consolidados de Percepción de Servicios</h2>
                 <table class="styled-table">
                     <thead>
                         <tr>
-                            <th>Opción</th>
-                            <th>Cantidad</th>
+                            <th>Indicador</th>
+                            <th>Frecuencia</th>
                             <th>Porcentaje</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if (!empty($consolidado)): ?>
-                            <?php foreach ($consolidado as $categoria => $opciones): ?>
-                                <tr><th colspan="3"><?= ucwords(str_replace('_', ' ', $categoria)) ?></th></tr>
-                                <?php foreach ($opciones as $opcion => $datos): ?>
-                                    <tr>
-                                        <td><?= htmlspecialchars($opcion) ?></td>
-                                        <td><?= $datos['cantidad'] ?></td>
-                                        <td><?= $datos['porcentaje'] ?>%</td>
-                                    </tr>
-                                <?php endforeach; ?>
+                        <?php foreach ($consolidadoPorcentajes as $categoria => $opciones): ?>
+                            <tr><th colspan="3"><?= ucwords(str_replace('_', ' ', $categoria)) ?> (Total: <?= $totalesPorCategoria[$categoria] ?>)</th></tr>
+                            <?php foreach ($opciones as $opcion => $datos): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($opcion) ?></td>
+                                    <td><?= $datos['cantidad'] ?></td>
+                                    <td><?= $datos['porcentaje'] ?>%</td>
+                                </tr>
                             <?php endforeach; ?>
-                        <?php else: ?>
-                            <tr><td colspan="3">No hay registros disponibles.</td></tr>
-                        <?php endif; ?>
+                        <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
         </div>
-    </div>    
+
+        <!-- Botón para volver al módulo VIH -->
+        <div class="actions">
+            <a href="../views/modulo_vih.php" class="btn btn-secondary">Volver al Módulo VIH</a>
+        </div>
+    </div>
 </body>
 </html>

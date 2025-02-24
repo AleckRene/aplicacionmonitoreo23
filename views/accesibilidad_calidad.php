@@ -8,17 +8,14 @@ if (!isset($_SESSION['user_id'])) {
 include '../config/config.php';
 
 // Consulta para obtener los registros
-$query = "SELECT * FROM accesibilidad_calidad";
+$query = "SELECT id, accesibilidad_servicios, actitud_personal, tarifas_ocultas, factores_mejora, disponibilidad_herramientas FROM accesibilidad_calidad";
 $result = $conn->query($query);
 
 // Verificar si hay registros
-$records = [];
-if ($result && $result->num_rows > 0) {
-    $records = $result->fetch_all(MYSQLI_ASSOC);
-}
+$records = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+$total_registros = count($records);
 
 // Consolidar datos para la tabla
-$total_registros = count($records);
 $consolidado = [
     'accesibilidad_servicios' => [],
     'actitud_personal' => [],
@@ -28,22 +25,32 @@ $consolidado = [
 ];
 
 foreach ($records as $record) {
-    foreach (array_keys($consolidado) as $key) {
-        $valor = $record[$key] ?? null;
-        if ($valor !== null) {
-            $consolidado[$key][$valor] = ($consolidado[$key][$valor] ?? 0) + 1;
+    foreach ($consolidado as $categoria => &$opciones) {
+        if (!empty($record[$categoria])) {
+            $valores = explode(',', $record[$categoria]); // Separar valores por coma
+            $valores = array_map('trim', $valores); // Limpiar espacios en blanco
+            $valores = array_unique($valores); // Evitar duplicados dentro del mismo registro
+
+            foreach ($valores as $valor) {
+                if (!empty($valor)) {
+                    $opciones[$valor] = ($opciones[$valor] ?? 0) + 1;
+                }
+            }
         }
     }
 }
 
-// Calcular porcentajes correctamente
-foreach ($consolidado as $categoria => &$opciones) {
-    $total_categoria = array_sum($opciones);
-    foreach ($opciones as &$datos) {
-        $datos = [
-            'cantidad' => $datos,
-            'porcentaje' => $total_categoria > 0 ? round(($datos / $total_categoria) * 100, 2) : 0
-        ];
+// Calcular totales y porcentajes
+$consolidadoPorcentajes = [];
+$totalesPorCategoria = [];
+
+foreach ($consolidado as $categoria => $opciones) {
+    $totalCategoria = array_sum($opciones);
+    $totalesPorCategoria[$categoria] = $totalCategoria;
+
+    foreach ($opciones as $opcion => $cantidad) {
+        $porcentaje = ($totalCategoria > 0) ? round(($cantidad / $totalCategoria) * 100, 2) : 0;
+        $consolidadoPorcentajes[$categoria][$opcion] = ['cantidad' => $cantidad, 'porcentaje' => $porcentaje];
     }
 }
 ?>
@@ -58,48 +65,24 @@ foreach ($consolidado as $categoria => &$opciones) {
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const modal = document.getElementById("modal");
-            const openModalBtn = document.getElementById("openModal");
-            const closeModalBtn = document.getElementById("closeModal");
-            const successMessage = document.getElementById("successMessage");
-
-            openModalBtn.addEventListener("click", function () {
-                modal.style.display = "block";
-            });
-
-            closeModalBtn.addEventListener("click", function () {
-                modal.style.display = "none";
-            });
-
-            window.addEventListener("click", function (event) {
-                if (event.target === modal) {
-                    modal.style.display = "none";
-                }
-            });
+            document.getElementById("openModal").addEventListener("click", () => modal.style.display = "block");
+            document.getElementById("closeModal").addEventListener("click", () => modal.style.display = "none");
+            window.onclick = event => { if (event.target === modal) modal.style.display = "none"; };
 
             document.querySelector("form").addEventListener("submit", function (event) {
                 event.preventDefault();
-                const formData = new FormData(this);
-
-                fetch(this.action, {
-                    method: "POST",
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        successMessage.textContent = data.success;
-                        successMessage.style.display = "block";
-                        setTimeout(() => successMessage.style.display = "none", 3000);
-                        this.reset();
-                    } else if (data.error) {
-                        alert(data.error);
-                    }
-                })
-                .catch(error => console.error("Error en la solicitud:", error));
+                fetch(this.action, { method: "POST", body: new FormData(this) })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.success ?? data.error);
+                        if (data.success) this.reset();
+                    })
+                    .catch(error => console.error("Error:", error));
             });
         });
     </script>
 </head>
+
 <body>
     <div class="container">
         <h1 class="title">Accesibilidad y Calidad</h1>
@@ -155,37 +138,41 @@ foreach ($consolidado as $categoria => &$opciones) {
                 </select>
             </div>
 
-            <div class="form-group">
-                <label for="disponibilidad">Disponibilidad de Medicamentos:</label>
-                <select id="disponibilidad" name="disponibilidad_herramientas" required>
-                    <option value="">Seleccione una opción</option>
-                    <option value="Muy deficiente">Muy deficiente</option>
-                    <option value="Deficiente">Deficiente</option>
-                    <option value="Regular">Regular</option>
-                    <option value="Buena">Buena</option>
-                    <option value="Excelente">Excelente</option>
-                </select>
-            </div>
-
             <button class="btn btn-primary" type="submit">Agregar</button>
         </form>
 
-        <!-- Mensaje de éxito -->
-        <div id="successMessage" class="alert alert-success" style="display: none; margin-bottom: 20px;"></div>
+        <button id="openModal" class="btn btn-primary">Ver Consolidado</button>
 
-        <!-- Botón para abrir el modal -->
-        <button id="openModal" class="btn btn-primary">Ver Registros</button>
-
-        <!-- Modal -->
+        <!-- Modal de datos consolidados -->
         <div id="modal" class="modal" style="display: none;">
             <div class="modal-content">
                 <span id="closeModal" class="close">&times;</span>
-                <h2>Registros de Accesibilidad y Calidad</h2>
-                <p>Registros cargados correctamente.</p>
+                <h2>Datos Consolidados de Accesibilidad y Calidad</h2>
+                <table class="styled-table">
+                    <thead>
+                        <tr>
+                            <th>Indicador</th>
+                            <th>Frecuencia</th>
+                            <th>Porcentaje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($consolidadoPorcentajes as $categoria => $opciones): ?>
+                            <tr><th colspan="3"><?= ucwords(str_replace('_', ' ', $categoria)) ?> (Total: <?= $totalesPorCategoria[$categoria] ?>)</th></tr>
+                            <?php foreach ($opciones as $opcion => $datos): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($opcion) ?></td>
+                                    <td><?= $datos['cantidad'] ?></td>
+                                    <td><?= $datos['porcentaje'] ?>%</td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <!-- Botón para volver -->
+        <!-- Botón para volver al módulo VIH -->
         <div class="actions">
             <a href="../views/modulo_vih.php" class="btn btn-secondary">Volver al Módulo VIH</a>
         </div>

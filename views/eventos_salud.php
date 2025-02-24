@@ -4,23 +4,55 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: ../views/login.php");
     exit;
 }
+
 include '../config/config.php';
 
 // Consulta para obtener los registros
-$query = "
-    SELECT 
-        id,
-        nombre_evento,
-        descripcion,
-        fecha,
-        acciones
-    FROM eventos_salud";
+$query = "SELECT id, nombre_evento, descripcion, fecha, acciones FROM eventos_salud";
 $result = $conn->query($query);
 
 // Verificar si hay registros
-$records = [];
-if ($result && $result->num_rows > 0) {
-    $records = $result->fetch_all(MYSQLI_ASSOC);
+$records = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+$total_registros = count($records);
+
+// Consolidar datos para la tabla
+$consolidado = [
+    'nombre_evento' => [],
+    'descripcion' => [],
+    'acciones' => [],
+];
+
+foreach ($records as $record) {
+    foreach ($consolidado as $categoria => &$opciones) {
+        if (!empty($record[$categoria])) {
+            $valores = explode(',', $record[$categoria]); // Separar valores por coma
+            $valores = array_map('trim', $valores); // Limpiar espacios en blanco
+            $valores = array_unique($valores); // Evitar duplicados dentro del mismo registro
+
+            foreach ($valores as $valor) {
+                if (!empty($valor)) {
+                    if (!isset($opciones[$valor])) {
+                        $opciones[$valor] = 0;
+                    }
+                    $opciones[$valor]++;
+                }
+            }
+        }
+    }
+}
+
+// Calcular porcentajes y totales por categoría
+$consolidadoPorcentajes = [];
+$totalesPorCategoria = [];
+
+foreach ($consolidado as $categoria => $opciones) {
+    $totalCategoria = array_sum($opciones);
+    $totalesPorCategoria[$categoria] = $totalCategoria;
+
+    foreach ($opciones as $opcion => $cantidad) {
+        $porcentaje = ($totalCategoria > 0) ? round(($cantidad / $totalCategoria) * 100, 2) : 0;
+        $consolidadoPorcentajes[$categoria][$opcion] = ['cantidad' => $cantidad, 'porcentaje' => $porcentaje];
+    }
 }
 ?>
 
@@ -31,12 +63,33 @@ if ($result && $result->num_rows > 0) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Eventos de Salud</title>
     <link rel="stylesheet" href="../assets/css/style.css">
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const modal = document.getElementById("modal");
+            document.getElementById("openModal").addEventListener("click", () => modal.style.display = "block");
+            document.getElementById("closeModal").addEventListener("click", () => modal.style.display = "none");
+            window.onclick = event => { if (event.target === modal) modal.style.display = "none"; };
+
+            document.querySelector("form").addEventListener("submit", function (event) {
+                event.preventDefault();
+                fetch(this.action, { method: "POST", body: new FormData(this) })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.success ?? data.error);
+                        if (data.success) this.reset();
+                    })
+                    .catch(error => console.error("Error:", error));
+            });
+        });
+    </script>
 </head>
+
 <body>
     <div class="container">
         <h1 class="title">Eventos de Salud</h1>
         <p class="description">Registra los eventos de salud y revisa los registros existentes.</p>
 
+        <!-- Formulario de Registro -->
         <form class="form-container" action="../api/eventos_salud.php" method="POST">
             <label for="nombre_evento">Tipo de Evento:</label>
             <select id="nombre_evento" name="nombre_evento" required>
@@ -73,32 +126,43 @@ if ($result && $result->num_rows > 0) {
             <button class="btn btn-primary" type="submit">Registrar Evento</button>
         </form>
 
-        <h2>Registros de Eventos</h2>
-        <?php if (!empty($records)): ?>
-            <table class="styled-table">
-                <thead>
-                    <tr>
-                        <th>Tipo de Evento</th>
-                        <th>Impacto</th>
-                        <th>Fecha</th>
-                        <th>Acciones Tomadas</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($records as $record): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($record['nombre_evento']) ?></td>
-                            <td><?= htmlspecialchars($record['descripcion']) ?></td>
-                            <td><?= htmlspecialchars($record['fecha']) ?></td>
-                            <td><?= htmlspecialchars($record['acciones']) ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php else: ?>
-            <p>No hay eventos registrados aún.</p>
-        <?php endif; ?>
+        <button id="openModal" class="btn btn-primary">Ver Consolidado de Eventos</button>
 
+        <!-- Modal de datos consolidados -->
+        <div id="modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span id="closeModal" class="close">&times;</span>
+                <h2>Datos Consolidados de Eventos</h2>
+                <table class="styled-table">
+                    <thead>
+                        <tr>
+                            <th>Indicador</th>
+                            <th>Frecuencia</th>
+                            <th>Porcentaje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($consolidadoPorcentajes as $categoria => $opciones): ?>
+                            <tr><th colspan="3"><?= ucwords(str_replace('_', ' ', $categoria)) ?></th></tr>
+                            <?php foreach ($opciones as $opcion => $datos): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($opcion) ?></td>
+                                    <td><?= $datos['cantidad'] ?></td>
+                                    <td><?= $datos['porcentaje'] ?>%</td>
+                                </tr>
+                            <?php endforeach; ?>
+                            <tr>
+                                <td><strong>Total <?= ucwords(str_replace('_', ' ', $categoria)) ?></strong></td>
+                                <td><strong><?= $totalesPorCategoria[$categoria] ?></strong></td>
+                                <td><strong>100%</strong></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Botón para regresar al módulo general -->
         <div class="actions">
             <a href="../views/modulo_general.php" class="btn btn-secondary">Volver al Módulo General</a>
         </div>

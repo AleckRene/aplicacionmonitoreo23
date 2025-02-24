@@ -8,17 +8,14 @@ if (!isset($_SESSION['user_id'])) {
 include '../config/config.php';
 
 // Consulta para obtener los registros
-$query = "SELECT * FROM necesidades_comunitarias";
+$query = "SELECT id, descripcion, acciones, area_prioritaria FROM necesidades_comunitarias";
 $result = $conn->query($query);
 
 // Verificar si hay registros
-$records = [];
-if ($result && $result->num_rows > 0) {
-    $records = $result->fetch_all(MYSQLI_ASSOC);
-}
+$records = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+$total_registros = count($records);
 
 // Consolidar datos para la tabla
-$total_registros = count($records);
 $consolidado = [
     'descripcion' => [],
     'acciones' => [],
@@ -26,22 +23,35 @@ $consolidado = [
 ];
 
 foreach ($records as $record) {
-    foreach (['descripcion', 'acciones', 'area_prioritaria'] as $key) {
-        $valor = $record[$key] ?? null;
-        if ($valor !== null) {
-            $consolidado[$key][$valor] = ($consolidado[$key][$valor] ?? 0) + 1;
+    foreach ($consolidado as $categoria => &$opciones) {
+        if (!empty($record[$categoria])) {
+            $valores = explode(',', $record[$categoria]); // Separar valores por coma
+            $valores = array_map('trim', $valores); // Limpiar espacios en blanco
+            $valores = array_unique($valores); // Evitar duplicados dentro del mismo registro
+
+            foreach ($valores as $valor) {
+                if (!empty($valor)) {
+                    if (!isset($opciones[$valor])) {
+                        $opciones[$valor] = 0;
+                    }
+                    $opciones[$valor]++;
+                }
+            }
         }
     }
 }
 
-// Calcular porcentajes
-foreach ($consolidado as &$opciones) {
-    $total_categoria = array_sum($opciones);
-    foreach ($opciones as &$cantidad) {
-        $cantidad = [
-            'cantidad' => $cantidad,
-            'porcentaje' => ($total_categoria > 0) ? round(($cantidad / $total_categoria) * 100, 2) : 0
-        ];
+// Calcular porcentajes y totales por categoría
+$consolidadoPorcentajes = [];
+$totalesPorCategoria = [];
+
+foreach ($consolidado as $categoria => $opciones) {
+    $totalCategoria = array_sum($opciones);
+    $totalesPorCategoria[$categoria] = $totalCategoria;
+
+    foreach ($opciones as $opcion => $cantidad) {
+        $porcentaje = ($totalCategoria > 0) ? round(($cantidad / $totalCategoria) * 100, 2) : 0;
+        $consolidadoPorcentajes[$categoria][$opcion] = ['cantidad' => $cantidad, 'porcentaje' => $porcentaje];
     }
 }
 ?>
@@ -56,42 +66,19 @@ foreach ($consolidado as &$opciones) {
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             const modal = document.getElementById("modal");
-            const openModalBtn = document.getElementById("openModal");
-            const closeModalBtn = document.getElementById("closeModal");
+            document.getElementById("openModal").addEventListener("click", () => modal.style.display = "block");
+            document.getElementById("closeModal").addEventListener("click", () => modal.style.display = "none");
+            window.onclick = event => { if (event.target === modal) modal.style.display = "none"; };
 
-            openModalBtn.addEventListener("click", function () {
-                modal.style.display = "block";
-            });
-
-            closeModalBtn.addEventListener("click", function () {
-                modal.style.display = "none";
-            });
-
-            window.addEventListener("click", function (event) {
-                if (event.target === modal) {
-                    modal.style.display = "none";
-                }
-            });
-
-            const form = document.querySelector("form");
-            form.addEventListener("submit", function (event) {
+            document.querySelector("form").addEventListener("submit", function (event) {
                 event.preventDefault();
-                const formData = new FormData(form);
-
-                fetch(form.action, {
-                    method: "POST",
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert("Registro agregado con éxito.");
-                        form.reset();
-                    } else {
-                        alert(data.error);
-                    }
-                })
-                .catch(error => console.error("Error en la solicitud:", error));
+                fetch(this.action, { method: "POST", body: new FormData(this) })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.success ?? data.error);
+                        if (data.success) this.reset();
+                    })
+                    .catch(error => console.error("Error:", error));
             });
         });
     </script>
@@ -102,7 +89,7 @@ foreach ($consolidado as &$opciones) {
         <h1 class="title">Necesidades Comunitarias</h1>
         <p class="description">Identifique las principales necesidades comunitarias y las áreas prioritarias para atención inmediata.</p>
 
-        <!-- Sección de Formulario -->
+        <!-- Formulario de Registro -->
         <form class="form-container" action="../api/necesidades_comunitarias.php" method="POST">
             <div class="form-group">
                 <label for="descripcion">Tipo de Necesidad</label>
@@ -143,43 +130,43 @@ foreach ($consolidado as &$opciones) {
             <button class="btn btn-primary" type="submit">Agregar Necesidad</button>
         </form>
 
-        <!-- Botón para abrir el modal -->
-        <button id="openModal" class="btn btn-primary">Ver Registros</button>
+        <button id="openModal" class="btn btn-primary">Ver Consolidado de Necesidades</button>
 
-        <!-- Modal -->
+        <!-- Modal de datos consolidados -->
         <div id="modal" class="modal" style="display: none;">
             <div class="modal-content">
                 <span id="closeModal" class="close">&times;</span>
-                <h2>Registros de Necesidades</h2>
+                <h2>Datos Consolidados de Necesidades</h2>
                 <table class="styled-table">
                     <thead>
                         <tr>
-                            <th>Opción</th>
-                            <th>Cantidad</th>
+                            <th>Indicador</th>
+                            <th>Frecuencia</th>
                             <th>Porcentaje</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if (!empty($consolidado)): ?>
-                            <?php foreach ($consolidado as $categoria => $opciones): ?>
-                                <tr><th colspan="3"><?= ucwords(str_replace('_', ' ', $categoria)) ?></th></tr>
-                                <?php foreach ($opciones as $opcion => $datos): ?>
-                                    <tr>
-                                        <td><?= htmlspecialchars($opcion) ?></td>
-                                        <td><?= $datos['cantidad'] ?></td>
-                                        <td><?= $datos['porcentaje'] ?>%</td>
-                                    </tr>
-                                <?php endforeach; ?>
+                        <?php foreach ($consolidadoPorcentajes as $categoria => $opciones): ?>
+                            <tr><th colspan="3"><?= ucwords(str_replace('_', ' ', $categoria)) ?></th></tr>
+                            <?php foreach ($opciones as $opcion => $datos): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($opcion) ?></td>
+                                    <td><?= $datos['cantidad'] ?></td>
+                                    <td><?= $datos['porcentaje'] ?>%</td>
+                                </tr>
                             <?php endforeach; ?>
-                        <?php else: ?>
-                            <tr><td colspan="3">No hay registros disponibles.</td></tr>
-                        <?php endif; ?>
+                            <tr>
+                                <td><strong>Total <?= ucwords(str_replace('_', ' ', $categoria)) ?></strong></td>
+                                <td><strong><?= $totalesPorCategoria[$categoria] ?></strong></td>
+                                <td><strong>100%</strong></td>
+                            </tr>
+                        <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- Botón para volver -->
+        <!-- Botón para regresar al módulo general -->
         <div class="actions">
             <a href="../views/modulo_general.php" class="btn btn-secondary">Volver al Módulo General</a>
         </div>

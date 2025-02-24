@@ -4,6 +4,7 @@ if (!isset($_SESSION['user_id'])) {
     header("Location: ../views/login.php");
     exit;
 }
+
 include '../config/config.php';
 
 // Consulta para obtener los registros
@@ -30,18 +31,27 @@ foreach ($records as $record) {
 
             foreach ($valores as $valor) {
                 if (!empty($valor)) {
-                    $opciones[$valor]['cantidad'] = ($opciones[$valor]['cantidad'] ?? 0) + 1;
+                    if (!isset($opciones[$valor])) {
+                        $opciones[$valor] = 0;
+                    }
+                    $opciones[$valor]++;
                 }
             }
         }
     }
 }
 
-// Calcular porcentajes
-foreach ($consolidado as &$opciones) {
-    $total_categoria = array_sum(array_column($opciones, 'cantidad'));
-    foreach ($opciones as &$datos) {
-        $datos['porcentaje'] = ($total_categoria > 0) ? round(($datos['cantidad'] / $total_categoria) * 100, 2) : 0;
+// Calcular porcentajes y totales por categoría
+$consolidadoPorcentajes = [];
+$totalesPorCategoria = [];
+
+foreach ($consolidado as $categoria => $opciones) {
+    $totalCategoria = array_sum($opciones);
+    $totalesPorCategoria[$categoria] = $totalCategoria;
+
+    foreach ($opciones as $opcion => $cantidad) {
+        $porcentaje = ($totalCategoria > 0) ? round(($cantidad / $totalCategoria) * 100, 2) : 0;
+        $consolidadoPorcentajes[$categoria][$opcion] = ['cantidad' => $cantidad, 'porcentaje' => $porcentaje];
     }
 }
 ?>
@@ -79,6 +89,7 @@ foreach ($consolidado as &$opciones) {
         <h1 class="title">Participación Comunitaria</h1>
         <p class="description">Evalúa la participación de la comunidad y sus estrategias de mejora.</p>
 
+        <!-- Formulario de Registro -->
         <form class="form-container" action="../api/participacion_comunitaria.php" method="POST">
             <div class="form-group">
                 <label for="nivel_participacion">Nivel de Participación</label>
@@ -121,34 +132,41 @@ foreach ($consolidado as &$opciones) {
 
         <button id="openModal" class="btn btn-primary">Ver Registros</button>
 
+        <!-- Modal de datos consolidados -->
         <div id="modal" class="modal" style="display: none;">
             <div class="modal-content">
                 <span id="closeModal" class="close">&times;</span>
-                <h2>Registros de Participación</h2>
+                <h2>Datos Consolidados</h2>
                 <table class="styled-table">
                     <thead>
-                        <tr><th>Opción</th><th>Cantidad</th><th>Porcentaje</th></tr>
+                        <tr>
+                            <th>Indicador</th>
+                            <th>Frecuencia</th>
+                            <th>Porcentaje</th>
+                        </tr>
                     </thead>
                     <tbody>
-                        <?php if (!empty($consolidado)): ?>
-                            <?php foreach ($consolidado as $categoria => $opciones): ?>
-                                <tr><th colspan="3"><?= ucwords(str_replace('_', ' ', $categoria)) ?></th></tr>
-                                <?php foreach ($opciones as $opcion => $datos): ?>
-                                    <tr>
-                                        <td><?= htmlspecialchars($opcion) ?></td>
-                                        <td><?= $datos['cantidad'] ?></td>
-                                        <td><?= $datos['porcentaje'] ?>%</td>
-                                    </tr>
-                                <?php endforeach; ?>
+                        <?php foreach ($consolidadoPorcentajes as $categoria => $opciones): ?>
+                            <tr><th colspan="3"><?= ucwords(str_replace('_', ' ', $categoria)) ?></th></tr>
+                            <?php foreach ($opciones as $opcion => $datos): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($opcion) ?></td>
+                                    <td><?= $datos['cantidad'] ?></td>
+                                    <td><?= $datos['porcentaje'] ?>%</td>
+                                </tr>
                             <?php endforeach; ?>
-                        <?php else: ?>
-                            <tr><td colspan="3">No hay registros disponibles.</td></tr>
-                        <?php endif; ?>
+                            <tr>
+                                <td><strong>Total <?= ucwords(str_replace('_', ' ', $categoria)) ?></strong></td>
+                                <td><strong><?= $totalesPorCategoria[$categoria] ?></strong></td>
+                                <td><strong>100%</strong></td>
+                            </tr>
+                        <?php endforeach; ?>
                     </tbody>
                 </table>
             </div>
         </div>
 
+        <!-- Botón para regresar al módulo general -->
         <div class="actions">
             <a href="../views/modulo_general.php" class="btn btn-secondary">Volver al Módulo General</a>
         </div>
