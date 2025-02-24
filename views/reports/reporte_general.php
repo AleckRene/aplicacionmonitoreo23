@@ -6,7 +6,7 @@ header('Content-Type: text/html; charset=UTF-8');
 
 use Dompdf\Dompdf;
 
-// Validar y obtener fechas del formulario
+// 🔹 **Validar y obtener fechas del formulario**
 $fecha_inicio = isset($_GET['fecha_inicio']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['fecha_inicio'])
     ? $conn->real_escape_string($_GET['fecha_inicio'])
     : 'Sin especificar';
@@ -16,63 +16,66 @@ $fecha_fin = isset($_GET['fecha_fin']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_
     : 'Sin especificar';
 
 // 🔹 **Verificar si la columna "fecha" existe en cada tabla**
-$fecha_existe = $conn->query("SHOW COLUMNS FROM indicadores_uso LIKE 'fecha'")->num_rows > 0;
-$query_filters = ($fecha_inicio !== 'Sin especificar' && $fecha_fin !== 'Sin especificar' && $fecha_existe)
-    ? " WHERE fecha BETWEEN '$fecha_inicio' AND '$fecha_fin'" : "";
-
-// 🔹 **Consultas con manejo de errores**
-function fetchData($conn, $query) {
-    $result = $conn->query($query);
-    if (!$result) {
-        error_log("Error en la consulta: " . $conn->error);
-        return [];
-    }
-    return $result->fetch_all(MYSQLI_ASSOC);
+function columnaFechaExiste($conn, $tabla) {
+    $result = $conn->query("SHOW COLUMNS FROM $tabla LIKE 'fecha'");
+    return $result && $result->num_rows > 0;
 }
 
-$indicadores_uso = fetchData($conn, "SELECT nivel_actividad, frecuencia_recomendaciones, calidad_uso FROM indicadores_uso $query_filters");
-$participacion_comunitaria = fetchData($conn, "SELECT nivel_participacion, grupos_comprometidos, estrategias_mejora FROM participacion_comunitaria $query_filters");
-$eventos_salud = fetchData($conn, "SELECT nombre_evento, descripcion, acciones FROM eventos_salud $query_filters");
-$necesidades_comunitarias = fetchData($conn, "SELECT descripcion, acciones, area_prioritaria FROM necesidades_comunitarias $query_filters");
+$tablas = ['indicadores_uso', 'participacion_comunitaria', 'eventos_salud', 'necesidades_comunitarias'];
+$filtros = [];
 
-// 🔹 **Mapeo de escala de Likert**
-$mapeoLikert = [
-    'nivel_actividad' => [1 => 'Nada activa', 2 => 'Poco activa', 3 => 'Moderadamente activa', 4 => 'Activa', 5 => 'Muy activa'],
-    'frecuencia_recomendaciones' => [1 => 'Raramente', 2 => 'Ocasionalmente', 3 => 'Moderadamente frecuente', 4 => 'Frecuente', 5 => 'Muy frecuente'],
-    'calidad_uso' => [1 => 'Deficiente', 2 => 'Aceptable', 3 => 'Buena', 4 => 'Muy buena', 5 => 'Excelente'],
-    'nivel_participacion' => [1 => 'Bajo', 2 => 'Moderado', 3 => 'Alto'],
-    'area_prioritaria' => [1 => 'Salud', 2 => 'Educación', 3 => 'Infraestructura', 4 => 'Seguridad', 5 => 'Medio ambiente']
-];
+foreach ($tablas as $tabla) {
+    if (columnaFechaExiste($conn, $tabla) && $fecha_inicio !== 'Sin especificar' && $fecha_fin !== 'Sin especificar') {
+        $filtros[$tabla] = " WHERE fecha BETWEEN '$fecha_inicio' AND '$fecha_fin'";
+    } else {
+        $filtros[$tabla] = "";
+    }
+}
+
+// 🔹 **Obtener datos de la base de datos**
+function fetchData($conn, $query) {
+    try {
+        $result = $conn->query($query);
+        if (!$result) {
+            error_log("Error en la consulta: " . $conn->error);
+            return [];
+        }
+        return $result->fetch_all(MYSQLI_ASSOC);
+    } catch (Exception $e) {
+        error_log("Excepción en la consulta: " . $e->getMessage());
+        return [];
+    }
+}
+
+$indicadores_uso = fetchData($conn, "SELECT nivel_actividad, frecuencia_recomendaciones, calidad_uso FROM indicadores_uso" . $filtros['indicadores_uso']);
+$participacion_comunitaria = fetchData($conn, "SELECT nivel_participacion, grupos_comprometidos, estrategias_mejora FROM participacion_comunitaria" . $filtros['participacion_comunitaria']);
+$eventos_salud = fetchData($conn, "SELECT nombre_evento, descripcion, acciones FROM eventos_salud" . $filtros['eventos_salud']);
+$necesidades_comunitarias = fetchData($conn, "SELECT descripcion, acciones, area_prioritaria FROM necesidades_comunitarias" . $filtros['necesidades_comunitarias']);
 
 // 🔹 **Función para consolidar datos**
-function consolidarDatos($data, $columnas, $mapeo = []) {
+function consolidarDatos($data, $columnas) {
     $resultados = [];
     foreach ($columnas as $columna) {
-        $valoresConvertidos = array_map(fn($item) => $mapeo[$columna][$item] ?? $item, array_column($data, $columna));
-        $frecuencias = array_count_values($valoresConvertidos);
+        $frecuencias = array_count_values(array_column($data, $columna));
         ksort($frecuencias);
         $total = array_sum($frecuencias);
-
         $resultados[$columna] = ['frecuencias' => $frecuencias, 'total' => $total];
     }
     return $resultados;
 }
 
-// Aplicar la consolidación con el mapeo
-$consolidadoIndicadores = consolidarDatos($indicadores_uso, ['nivel_actividad', 'frecuencia_recomendaciones', 'calidad_uso'], $mapeoLikert);
-$consolidadoParticipacion = consolidarDatos($participacion_comunitaria, ['nivel_participacion', 'grupos_comprometidos', 'estrategias_mejora'], $mapeoLikert);
+$consolidadoIndicadores = consolidarDatos($indicadores_uso, ['nivel_actividad', 'frecuencia_recomendaciones', 'calidad_uso']);
+$consolidadoParticipacion = consolidarDatos($participacion_comunitaria, ['nivel_participacion', 'grupos_comprometidos', 'estrategias_mejora']);
 $consolidadoEventos = consolidarDatos($eventos_salud, ['nombre_evento', 'descripcion', 'acciones']);
-$consolidadoNecesidades = consolidarDatos($necesidades_comunitarias, ['descripcion', 'acciones', 'area_prioritaria'], $mapeoLikert);
+$consolidadoNecesidades = consolidarDatos($necesidades_comunitarias, ['descripcion', 'acciones', 'area_prioritaria']);
 
 // 🔹 **Función para generar tablas**
-function generarTabla($titulo, $datosConsolidados, $isFirstTable = false) {
-    $html = $isFirstTable ? "<h2>{$titulo}</h2>" : "<h2 class='page-break'>{$titulo}</h2>";
-
+function generarTabla($titulo, $datosConsolidados) {
+    $html = "<h2>{$titulo}</h2>";
     if (!empty($datosConsolidados)) {
         foreach ($datosConsolidados as $indicador => $datos) {
             $totalGeneral = $datos['total'];
-            $html .= "<div class='table-container'>
-                        <table>
+            $html .= "<table border='1' cellpadding='5' cellspacing='0'>
                         <thead>
                             <tr>
                                 <th>{$indicador}</th>
@@ -86,7 +89,7 @@ function generarTabla($titulo, $datosConsolidados, $isFirstTable = false) {
                 $html .= "<tr><td>{$valor}</td><td>{$frecuencia}</td><td>{$porcentaje}%</td></tr>";
             }
             $html .= "<tr><td><strong>Total</strong></td><td><strong>{$totalGeneral}</strong></td><td><strong>100%</strong></td></tr>
-                        </tbody></table></div>";
+                        </tbody></table><br>";
         }
     } else {
         $html .= '<p>No hay datos disponibles para esta sección.</p>';
@@ -99,18 +102,14 @@ try {
     $dompdf = new Dompdf();
     $dompdf->set_option('isHtml5ParserEnabled', true);
     $dompdf->set_option('isRemoteEnabled', true);
-    
-    // Cargar estilos CSS
+
     $css = file_get_contents('../../assets/css/pdf_styles.css');
-    $html = "<html><head><title>Reporte General</title><style>{$css}</style></head><body>";
+    $html = "<html><head><title>Reporte General</title><style>{$css}</style></head><body>
+            <div>
+            <h1>Reporte General</h1>
+            <h3>Período: " . htmlspecialchars($fecha_inicio) . " - " . htmlspecialchars($fecha_fin) . "</h3>";
 
-    // 🔹 **Encabezado del reporte**
-    $html .= "<div class='container'>
-                <h1>Reporte General</h1>
-                <h3>Período: " . htmlspecialchars($fecha_inicio) . " - " . htmlspecialchars($fecha_fin) . "</h3>";
-
-    // 🔹 **Añadir todas las tablas al reporte**
-    $html .= generarTabla('Indicadores de Uso', $consolidadoIndicadores, true);
+    $html .= generarTabla('Indicadores de Uso', $consolidadoIndicadores);
     $html .= generarTabla('Participación Comunitaria', $consolidadoParticipacion);
     $html .= generarTabla('Eventos de Salud', $consolidadoEventos);
     $html .= generarTabla('Necesidades Comunitarias', $consolidadoNecesidades);
@@ -125,7 +124,8 @@ try {
     file_put_contents($tempPath, $dompdf->output());
 
     echo "<html><head><title>Reporte General</title><link rel='stylesheet' href='../../assets/css/pdf_styles.css'></head>
-    <body><h1>Reporte generado con éxito</h1>
+    <body>
+    <h1>Reporte generado con éxito</h1>
     <p>El reporte ha sido generado para el período: <strong>{$fecha_inicio} - {$fecha_fin}</strong></p>
     <a href='{$tempPath}' class='btn btn-primary' target='_blank'>Ver PDF</a>
     <a href='../modulo_general.php' class='btn btn-primary'>Volver al Módulo General</a>
