@@ -8,21 +8,32 @@ use Dompdf\Dompdf;
 
 // Validar y obtener fechas del formulario
 $fecha_inicio = isset($_GET['fecha_inicio']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['fecha_inicio'])
-    ? mysqli_real_escape_string($conn, $_GET['fecha_inicio'])
+    ? $conn->real_escape_string($_GET['fecha_inicio'])
     : 'Sin especificar';
 
 $fecha_fin = isset($_GET['fecha_fin']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $_GET['fecha_fin'])
-    ? mysqli_real_escape_string($conn, $_GET['fecha_fin'])
+    ? $conn->real_escape_string($_GET['fecha_fin'])
     : 'Sin especificar';
 
-// Consultas a la base de datos con filtro por fechas
-$query_filters = ($fecha_inicio !== 'Sin especificar' && $fecha_fin !== 'Sin especificar') ? 
-    " WHERE fecha BETWEEN '$fecha_inicio' AND '$fecha_fin'" : "";
+// 🔹 **Verificar si la columna "fecha" existe en cada tabla**
+$fecha_existe = $conn->query("SHOW COLUMNS FROM indicadores_uso LIKE 'fecha'")->num_rows > 0;
+$query_filters = ($fecha_inicio !== 'Sin especificar' && $fecha_fin !== 'Sin especificar' && $fecha_existe)
+    ? " WHERE fecha BETWEEN '$fecha_inicio' AND '$fecha_fin'" : "";
 
-$indicadores_uso = $conn->query("SELECT nivel_actividad, frecuencia_recomendaciones, calidad_uso FROM indicadores_uso $query_filters")->fetch_all(MYSQLI_ASSOC);
-$participacion_comunitaria = $conn->query("SELECT nivel_participacion, grupos_comprometidos, estrategias_mejora FROM participacion_comunitaria $query_filters")->fetch_all(MYSQLI_ASSOC);
-$eventos_salud = $conn->query("SELECT nombre_evento, descripcion, acciones FROM eventos_salud $query_filters")->fetch_all(MYSQLI_ASSOC);
-$necesidades_comunitarias = $conn->query("SELECT descripcion, acciones, area_prioritaria FROM necesidades_comunitarias $query_filters")->fetch_all(MYSQLI_ASSOC);
+// 🔹 **Consultas con manejo de errores**
+function fetchData($conn, $query) {
+    $result = $conn->query($query);
+    if (!$result) {
+        error_log("Error en la consulta: " . $conn->error);
+        return [];
+    }
+    return $result->fetch_all(MYSQLI_ASSOC);
+}
+
+$indicadores_uso = fetchData($conn, "SELECT nivel_actividad, frecuencia_recomendaciones, calidad_uso FROM indicadores_uso $query_filters");
+$participacion_comunitaria = fetchData($conn, "SELECT nivel_participacion, grupos_comprometidos, estrategias_mejora FROM participacion_comunitaria $query_filters");
+$eventos_salud = fetchData($conn, "SELECT nombre_evento, descripcion, acciones FROM eventos_salud $query_filters");
+$necesidades_comunitarias = fetchData($conn, "SELECT descripcion, acciones, area_prioritaria FROM necesidades_comunitarias $query_filters");
 
 // 🔹 **Mapeo de escala de Likert**
 $mapeoLikert = [
@@ -38,7 +49,6 @@ function consolidarDatos($data, $columnas, $mapeo = []) {
     $resultados = [];
     foreach ($columnas as $columna) {
         $valoresConvertidos = array_map(fn($item) => $mapeo[$columna][$item] ?? $item, array_column($data, $columna));
-
         $frecuencias = array_count_values($valoresConvertidos);
         ksort($frecuencias);
         $total = array_sum($frecuencias);
